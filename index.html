@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>メモメモリー</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#050505">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="メモメモリー">
+<style>
+  :root { --bg:#050505; --card:#161616; --card2:#232323; --line:#2a2a2a; --text:#f2f2f2; --sub:#9a9a9a; --green:#a78bfa; --gold:#e0b13a; --heart:#f0628a; --red:#ff8080; --on:#1c1140; }
+  :root[data-theme="blue"]   { --green:#4aa3ff; --on:#04203d; }
+  :root[data-theme="green"]  { --green:#21c58c; --on:#08251a; }
+  :root[data-theme="pink"]   { --green:#f472b6; --on:#400a24; }
+  :root[data-theme="orange"] { --green:#fb923c; --on:#3d1a02; }
+  /* ライト表示: 背景と文字を明るくし、色ごとに見やすい濃さのアクセント色にする */
+  :root[data-mode="light"] { --bg:#f3f4f6; --card:#ffffff; --card2:#eceef1; --line:#d9dce1; --text:#1f2328; --sub:#6b7280; --on:#ffffff; --gold:#c8920a; --red:#d64545; --heart:#e0457b; --green:#6d4ad8; }
+  :root[data-mode="light"][data-theme="blue"]   { --green:#1d6fd6; --on:#ffffff; }
+  :root[data-mode="light"][data-theme="green"]  { --green:#0f9d6e; --on:#ffffff; }
+  :root[data-mode="light"][data-theme="pink"]   { --green:#d63384; --on:#ffffff; }
+  :root[data-mode="light"][data-theme="orange"] { --green:#d9631a; --on:#ffffff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; line-height:1.5; }
+  .page { max-width:640px; margin:0 auto; padding:0 0 90px; }
+  .page[hidden] { display:none; }
+  header { position:sticky; top:0; z-index:5; background:var(--card); border-bottom:1px solid var(--line); padding:12px 16px 10px; }
+  header h1 { font-size:18px; margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; }
+  .count { font-size:12px; color:var(--sub); font-weight:400; }
+  .chips { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; }
+  .chip { flex:none; padding:6px 12px; border:1px solid var(--line); background:var(--card2); color:var(--text); border-radius:16px; font-size:13px; }
+  .hbtn { padding:6px 12px; border:1px solid var(--green); background:var(--card2); color:var(--green); border-radius:8px; font-size:13px; font-weight:600; font-family:inherit; margin-left:4px; }
+  .rowwrap { display:flex; align-items:stretch; border-bottom:1px solid var(--line); }
+  .favb { flex:none; width:46px; border:none; background:none; color:var(--sub); font-size:22px; padding:0; font-family:inherit; }
+  .favb.on { color:var(--heart); }
+  .rowwrap .row { border-bottom:none; flex:1; min-width:0; }
+  .dragh { flex:none; width:52px; border:none; background:none; color:var(--sub); font-size:24px; touch-action:none; cursor:grab; font-family:inherit; }
+  .rowwrap.dragging { position:relative; z-index:3; background:var(--card2); box-shadow:0 6px 16px rgba(0,0,0,.4); }
+  .rowwrap { transition:transform .12s; }
+  .rowwrap.dragging { transition:none; }
+  select:disabled { opacity:.4; }
+  #pinSheet { z-index:30; }
+  #lockScreen { position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px; }
+  #lockScreen[hidden] { display:none; }
+  .lockbox { width:100%; max-width:320px; text-align:center; }
+  .lockbox h1 { display:block; font-size:22px; margin:0 0 16px; }
+  .lockbox p { color:var(--sub); font-size:14px; margin:0 0 12px; }
+  #lockPin { text-align:center; font-size:26px; letter-spacing:.4em; }
+  .lockmsg { color:var(--red); font-size:13px; min-height:20px; margin-top:6px; }
+  .pinwarn { font-size:13px; color:var(--sub); margin:8px 0; }
+  .pinwarn b { color:var(--red); }
+  .chips[hidden] { display:none; }
+  .chip.on { background:var(--green); color:var(--on); border-color:var(--green); }
+  .tools { display:flex; gap:8px; margin-top:8px; }
+  .tools input, .tools select { flex:1; min-width:0; }
+  input[type=text], input[type=password], input[type=date], input[type=number], select, textarea { width:100%; padding:10px; font-size:16px; color:var(--text); background:var(--card2); border:1px solid var(--line); border-radius:8px; font-family:inherit; }
+  textarea { min-height:70px; resize:vertical; }
+  .row { display:block; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line); color:var(--text); padding:14px 16px; font-family:inherit; }
+  .row .t { font-size:16px; font-weight:600; display:flex; justify-content:space-between; gap:8px; }
+  .row .m { font-size:12px; color:var(--sub); margin-top:2px; }
+  .badge { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; background:var(--card2); color:var(--green); margin-right:6px; }
+  .stars-s { color:var(--gold); letter-spacing:1px; white-space:nowrap; font-size:13px; }
+  .fav { color:var(--heart); }
+  .empty { text-align:center; color:var(--sub); padding:60px 20px; font-size:14px; }
+  .fab { position:fixed; right:20px; bottom:24px; width:56px; height:56px; border-radius:50%; border:none; background:var(--green); color:var(--on); font-size:30px; box-shadow:0 4px 12px rgba(0,0,0,.5); z-index:6; }
+  .bar { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .link-btn { background:none; border:none; color:var(--green); font-size:15px; padding:6px 4px; font-family:inherit; }
+  .sec { padding:14px 16px; border-bottom:1px solid var(--line); }
+  .sec h2 { font-size:13px; color:var(--green); margin:0 0 8px; letter-spacing:.05em; }
+  .kv { display:flex; justify-content:space-between; gap:12px; padding:6px 0; font-size:15px; }
+  .kv .k { color:var(--sub); flex:none; max-width:55%; }
+  .kv .v { text-align:right; word-break:break-all; white-space:pre-wrap; }
+  .kv.block { display:block; } .kv.block .v { text-align:left; margin-top:2px; }
+  a { color:var(--green); }
+  .urls a { display:block; padding:8px 0; word-break:break-all; }
+  .big-title { font-size:20px; font-weight:700; margin:0; }
+  .btn { display:block; width:100%; padding:13px; font-size:15px; font-weight:600; border:none; border-radius:10px; background:var(--green); color:var(--on); margin-top:10px; font-family:inherit; }
+  .btn.sub { background:var(--card2); color:var(--text); }
+  .btn.del { background:none; color:var(--red); border:1px solid var(--red); }
+  label.lbl { display:block; font-weight:600; font-size:13px; margin:14px 0 4px; color:var(--sub); }
+  .item { margin-top:16px; }
+  .item-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .item-head strong { font-size:14px; }
+  .use { font-size:12px; color:var(--sub); white-space:nowrap; }
+  .stars { display:flex; gap:6px; margin:6px 0; }
+  .stars button { flex:1; padding:8px 0; border:1px solid var(--line); background:var(--card2); color:var(--text); border-radius:8px; font-size:15px; }
+  .stars button.on { background:var(--green); color:var(--on); border-color:var(--green); }
+  pre { white-space:pre-wrap; word-break:break-all; background:var(--card2); padding:12px; border-radius:8px; font-size:13px; margin:8px 0 0; }
+  .sheet { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:20; display:flex; align-items:flex-end; }
+  .sheet[hidden] { display:none; }
+  .sheet > div { width:100%; max-width:640px; margin:0 auto; background:var(--card); border-radius:16px 16px 0 0; padding:16px; }
+  .sheet #themes .chip, .sheet #modes .chip { display:inline-block; width:auto; margin-top:0; padding:8px 14px; font-size:14px; border-radius:16px; }
+  .mh { font-size:13px; color:var(--green); margin:16px 0 8px; }
+  .help h3 { font-size:14px; color:var(--green); margin:16px 0 4px; }
+  .help p { font-size:14px; margin:0 0 6px; color:var(--text); }
+  .sheet .chip { display:block; width:100%; margin-top:8px; padding:14px; font-size:16px; border-radius:10px; text-align:left; }
+</style>
+</head>
+<body>
+
+<!-- 一覧 -->
+<div class="page" id="pList">
+  <header>
+    <h1><span>メモメモリー</span><span><span class="count" id="count"></span> <button class="hbtn" id="menuBtn">機能</button> <button class="hbtn" id="helpBtn">使い方</button></span></h1>
+    <div class="chips" id="chips"></div>
+    <div class="tools">
+      <input type="text" id="q" placeholder="さがす">
+      <select id="sort" style="max-width:130px">
+        <option value="new">更新順</option>
+        <option value="date">日付が新しい順</option>
+        <option value="dateAsc">日付が古い順</option>
+        <option value="pref">都道府県順</option>
+      </select>
+    </div>
+  </header>
+  <div id="list"></div>
+  <button class="fab" id="addBtn" aria-label="追加">+</button>
+</div>
+
+<!-- 詳細 -->
+<div class="page" id="pDetail" hidden>
+  <header><div class="bar">
+    <button class="link-btn" id="dBack">‹ 戻る</button>
+    <span>
+      <button class="link-btn fav" id="dFav">♡</button>
+      <button class="link-btn" id="dEdit">編集</button>
+    </span>
+  </div></header>
+  <div id="dBody"></div>
+  <div class="sec" style="border:none">
+    <h2 style="font-size:13px;color:var(--green);margin:0 0 4px">口コミ文</h2>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:6px">入力した内容から、仮の文章を作ります。自由に直せます。</div>
+    <button class="btn" id="dGenBtn" style="margin-top:0">文章を作る</button>
+    <textarea id="dGen" style="min-height:200px;margin-top:8px" placeholder="「文章を作る」を押すと、ここに文章が出ます" hidden></textarea>
+    <div id="dGenBtns" style="display:flex;gap:8px" hidden>
+      <button class="btn sub" id="dGenCopy">コピー</button>
+      <button class="btn sub" id="dGenSave">この文章を保存</button>
+    </div>
+    <div id="dGenMsg" style="font-size:12px;color:var(--sub);margin-top:4px"></div>
+    <button class="btn sub" id="dPayload" style="margin-top:16px">AIに送る内容を確認</button>
+    <pre id="dPayloadText" hidden></pre>
+    <button class="btn del" id="dDel">削除</button>
+  </div>
+</div>
+
+<!-- 編集 -->
+<div class="page" id="pEdit" hidden>
+  <header><div class="bar">
+    <button class="link-btn" id="eCancel">キャンセル</button>
+    <strong id="eTitle"></strong>
+    <button class="link-btn" id="eSave">保存</button>
+  </div></header>
+  <div id="eBody"></div>
+</div>
+
+
+<!-- ロック画面 -->
+<div id="lockScreen" hidden>
+  <div class="lockbox">
+    <h1>メモメモリー</h1>
+    <p id="lockHint">パスコードを入力してください</p>
+    <input id="lockPin" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="••••">
+    <div id="lockMsg" class="lockmsg"></div>
+    <button class="btn" id="lockGo">開く</button>
+    <button class="link-btn" id="lockReset" style="margin-top:14px">パスコードを忘れた</button>
+  </div>
+</div>
+
+<!-- パスコード設定 -->
+<div class="sheet" id="pinSheet" hidden><div>
+  <strong style="font-size:17px" id="pinTitle">パスコードを設定</strong>
+  <p class="pinwarn">保存したメモは、このパスコードで暗号化されます。<b>パスコードを忘れると、メモは元に戻せません。</b>事前に「機能」の「書き出す」でバックアップを取っておくことをおすすめします。</p>
+  <label class="lbl">パスコード(数字4〜6桁)</label>
+  <input type="password" id="pinA" inputmode="numeric" autocomplete="off" maxlength="6">
+  <label class="lbl">もう一度入力</label>
+  <input type="password" id="pinB" inputmode="numeric" autocomplete="off" maxlength="6">
+  <div id="pinMsg" class="lockmsg"></div>
+  <button class="btn" id="pinOk">設定する</button>
+  <button class="btn sub" id="pinCancel">キャンセル</button>
+</div></div>
+
+<!-- 機能 -->
+<div class="sheet" id="menuSheet" hidden><div style="max-height:90vh;overflow-y:auto">
+  <strong style="font-size:17px">機能</strong>
+  <h3 class="mh">データ</h3>
+  <div style="display:flex;gap:8px">
+    <button class="btn sub" id="exportBtn" style="margin:0">書き出す</button>
+    <button class="btn sub" id="importBtn" style="margin:0">読み込む</button>
+    <input type="file" id="importFile" accept=".json" hidden>
+  </div>
+  <div style="font-size:12px;color:var(--sub);margin-top:6px">書き出したファイルは暗号化されません。保管に気をつけてください。</div>
+  <h3 class="mh">ロック</h3>
+  <div id="lockArea"></div>
+  <h3 class="mh">表示</h3>
+  <div class="chips" id="modes" style="flex-wrap:wrap"></div>
+  <h3 class="mh">色</h3>
+  <div class="chips" id="themes" style="flex-wrap:wrap"></div>
+  <p style="text-align:center;margin:14px 0 0"><a href="privacy.html" style="font-size:13px">プライバシーポリシー</a></p>
+  <button class="btn" id="menuClose">閉じる</button>
+</div></div>
+
+<!-- 使い方 -->
+<div class="sheet" id="helpSheet" hidden><div style="max-height:85vh;overflow-y:auto">
+  <strong style="font-size:17px">使い方</strong>
+  <div class="help">
+    <h3>記録を足す</h3>
+    <p>右下の「+」を押して、入力して「保存」を押します。名前と店名のどちらか、または両方に入れます。</p>
+    <h3>URLから名前・住所を入れる</h3>
+    <p>URL欄にお店のページのURLを貼り、「URLから名前・住所を読み取る」を押します。ページに書かれている範囲だけが入り、すでに入っている欄は上書きしません。</p>
+    <p>サイトに断られた時は、ブラウザに出る「ページの題名」を貼る欄が出ます。貼って「題名から反映する」を押してください。</p>
+    <h3>文章を作る</h3>
+    <p>記録を開いて「文章を作る」を押すと、日付・店名・住所・感想から文章のもとができます。自由に直して、「コピー」や「この文章を保存」ができます。</p>
+    <h3>お気に入り・さがす</h3>
+    <p>記録を開いた右上の♡、または一覧の左端の♡で、お気に入りにできます。一覧では「♥お気に入り」で絞り込み、上の欄で文字検索ができます。</p>
+    <h3>個人メモ</h3>
+    <p>記録の最後にある欄です。AIに送る内容には入りません。</p>
+    <h3>バックアップ</h3>
+    <p>データはこの端末の中にだけ保存されます。機種変更の前や、念のために、右上の「機能」の「書き出す」で保存しておき、新しい端末で「読み込む」を使ってください。</p>
+    <h3>ロック</h3>
+    <p>「機能」の「パスコードを設定」で、開くときにパスコード(数字4〜6桁)が必要になります。保存したメモも暗号化されます。パスコードを忘れるとメモは戻せないので、書き出しでバックアップを取ってください。アプリを30秒以上はなれると、自動でロックされます。</p>
+    <h3>色を変える</h3>
+    <p>右上の「機能」から、色を6種類の中から選べます。</p>
+  </div>
+  <button class="btn" id="helpClose">閉じる</button>
+</div></div>
+
+<script>
+// ===== 入力項目の定義 =====
+const BASIC_COMMON = [
+  { key:"name", label:"名前(店名・場所名)", type:"text", placeholder:"例: 〇〇店" },
+  { key:"date", label:"日付", type:"date" },
+  { key:"area", label:"住所", type:"text", placeholder:"例: 京都市〇〇区..." },
+  { key:"cost", label:"費用(任意)", type:"text", placeholder:"例: 8,000円" },
+  { key:"urls", label:"URL(1行に1つ)", type:"url", placeholder:"https://..." },
+];
+const review = ph => ({ title:"感想", items:[{ key:"review", label:"感想(自由に書く)", type:"textarea", placeholder:ph }] });
+const CATEGORIES = [
+  { id:"memo", label:"メモ", private:true, groups:[
+    { title:"基本情報", basics:[BASIC_COMMON[0], { key:"shop", label:"店名", type:"text", placeholder:"例: 〇〇店" }, ...BASIC_COMMON.slice(1)] },
+    review("例: 予約はスムーズ。待ち時間は10分。料金は説明どおり。清潔感があり、時間も守られた。") ]},
+];
+const catOf = () => CATEGORIES[0];   // 種類は1つだけ(古い記録も同じ形で表示する)
+
+// ===== データ =====
+const KEY = "memo-records-v3";          // ロックなしのとき
+const ENC_KEY = "memo-records-enc";     // ロックありのとき(暗号化)
+const LOCK_KEY = "memo-lock";           // パスコードの確認用データ(パスコード自体は保存しない)
+let lockCfg = null; try { lockCfg = JSON.parse(localStorage.getItem(LOCK_KEY) || "null"); } catch (e) {}
+let cryptoKey = null;                   // 鍵は画面を開いている間だけメモリに置く
+let records = [];
+if (!lockCfg) { try { records = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) {} }
+
+const te = new TextEncoder(), td = new TextDecoder();
+const toB64 = u8 => btoa(String.fromCharCode(...u8));
+const fromB64 = b => Uint8Array.from(atob(b), c => c.charCodeAt(0));
+async function deriveKey(pin, saltB64) {
+  const base = await crypto.subtle.importKey("raw", te.encode(pin), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: fromB64(saltB64), iterations: 250000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+async function encStr(key, str) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, te.encode(str)));
+  return { iv: toB64(iv), d: toB64(ct) };
+}
+async function decStr(key, o) {
+  return td.decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64(o.iv) }, key, fromB64(o.d)));
+}
+let writing = Promise.resolve();
+const persist = () => {
+  if (lockCfg) {
+    if (!cryptoKey) return;
+    const snap = JSON.stringify(records), key = cryptoKey;
+    writing = writing.then(async () => { try { localStorage.setItem(ENC_KEY, JSON.stringify(await encStr(key, snap))); } catch (e) {} });
+    return;
+  }
+  try { localStorage.setItem(KEY, JSON.stringify(records)); } catch (e) {}
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const $ = id => document.getElementById(id);
+
+// ===== 色の切り替え =====
+const DEFAULT_THEME = "purple";   // ベストログ(グリーン)と見分けるため、最初の色はパープル
+const THEMES = [["purple","パープル"],["blue","ブルー"],["green","グリーン"],["pink","ピンク"],["orange","オレンジ"]];
+function applyTheme(t) {
+  if (t === DEFAULT_THEME) document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
+  try { localStorage.setItem("memo-theme", t); } catch (e) {}
+  $("themes").innerHTML = THEMES.map(([k, n]) => `<button class="chip${k === t ? " on" : ""}" data-t="${k}">${n}</button>`).join("");
+  $("themes").querySelectorAll("button").forEach(b => b.onclick = () => applyTheme(b.dataset.t));
+}
+$("helpBtn").onclick = () => $("helpSheet").hidden = false;
+$("helpClose").onclick = () => $("helpSheet").hidden = true;
+$("helpSheet").onclick = e => { if (e.target.id === "helpSheet") $("helpSheet").hidden = true; };
+// ===== 表示(ダーク / ライト / 端末に合わせる) =====
+const MODES = [["dark","ダーク"],["light","ライト"],["auto","端末に合わせる"]];
+const darkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+let mode = "dark";
+function applyMode(m) {
+  mode = m;
+  const resolved = m === "auto" ? (darkQuery && !darkQuery.matches ? "light" : "dark") : m;
+  document.documentElement.setAttribute("data-mode", resolved);
+  try { localStorage.setItem("memo-mode", m); } catch (e) {}
+  $("modes").innerHTML = MODES.map(([k, n]) => `<button class="chip${k === m ? " on" : ""}" data-m="${k}">${n}</button>`).join("");
+  $("modes").querySelectorAll("button").forEach(b => b.onclick = () => applyMode(b.dataset.m));
+}
+if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener("change", () => { if (mode === "auto") applyMode("auto"); });
+let savedMode = "dark"; try { savedMode = localStorage.getItem("memo-mode") || "dark"; } catch (e) {}
+// 前の版で「ライト」を色として選んでいた人は、ライト表示に引き継ぐ
+try { if (localStorage.getItem("memo-theme") === "light") { savedMode = "light"; localStorage.setItem("memo-theme", DEFAULT_THEME); } } catch (e) {}
+applyMode(MODES.some(([k]) => k === savedMode) ? savedMode : "dark");
+
+$("menuBtn").onclick = () => $("menuSheet").hidden = false;
+$("menuClose").onclick = () => $("menuSheet").hidden = true;
+$("menuSheet").onclick = e => { if (e.target.id === "menuSheet") $("menuSheet").hidden = true; };
+let savedTheme = DEFAULT_THEME; try { savedTheme = localStorage.getItem("memo-theme") || DEFAULT_THEME; } catch (e) {}
+applyTheme(THEMES.some(([k]) => k === savedTheme) ? savedTheme : DEFAULT_THEME);
+
+const stars = n => n ? "★".repeat(n) + "☆".repeat(5 - n) : "";
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+const fmtDate = s => s ? s.replace(/-/g, "/") : "";
+const DASH = '<span style="color:var(--sub)">—</span>';
+let filter = "all", curId = null, draft = null;
+
+// URLを安全なリンクに(http/httpsだけ許可)
+function linkHtml(line) {
+  const t = line.trim(); if (!t) return "";
+  if (/^https?:\/\/\S+$/i.test(t)) return `<a href="${esc(t)}" target="_blank" rel="noopener noreferrer">${esc(t)}</a>`;
+  return `<span>${esc(t)}</span>`;
+}
+
+// 一覧・詳細の見出し: 「名前 店名」(店名が名前と同じなら重ねない)
+function titleOf(v) {
+  const n = v.name || "", sh = v.shop || "";
+  return n && sh && sh !== n ? `${n}　${sh}` : (n || sh || "(名前なし)");
+}
+function show(id) { ["pList","pDetail","pEdit"].forEach(p => $(p).hidden = p !== id); window.scrollTo(0, 0); }
+
+// ===== 一覧 =====
+const PREF_ORDER = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+const PREF_RE = new RegExp(PREF_ORDER.join("|"));
+// お気に入りの並び順(favOrder)。番号がない記録には、今の並びのまま番号を振る
+// お気に入りの付け外し。付けた記録は、お気に入りの並びのいちばん下に入る
+function toggleFav(id) {
+  const r = records.find(x => x.id === id); if (!r) return;
+  r.fav = !r.fav;
+  if (r.fav) r.favOrder = Math.max(-1, ...records.filter(x => x.fav && x !== r).map(x => x.favOrder ?? -1)) + 1;
+  persist();
+}
+function normalizeFavOrder() {
+  const favs = records.filter(r => r.fav).sort((a, b) => (a.favOrder ?? Infinity) - (b.favOrder ?? Infinity) || b.updated - a.updated);
+  let changed = false;
+  favs.forEach((r, i) => { if (r.favOrder !== i) { r.favOrder = i; changed = true; } });
+  if (changed) persist();
+}
+// つかんで上下に動かして並べ替える(つまみ「≡」を押したまま動かす)
+function startDrag(e, handle, rows) {
+  e.preventDefault();
+  const wraps = [...$("list").querySelectorAll(".rowwrap")];
+  const from = wraps.indexOf(handle.closest(".rowwrap")), me = wraps[from];
+  const rects = wraps.map(w => w.getBoundingClientRect()), startY = e.clientY;
+  let to = from;
+  handle.setPointerCapture(e.pointerId);
+  me.classList.add("dragging");
+  const move = ev => {
+    const dy = ev.clientY - startY;
+    me.style.transform = `translateY(${dy}px)`;
+    const center = rects[from].top + rects[from].height / 2 + dy;
+    to = 0; rects.forEach((r, k) => { if (k !== from && r.top + r.height / 2 < center) to++; });
+    if (to > from) to = Math.min(to, wraps.length - 1);
+    wraps.forEach((w, k) => {
+      if (k === from) return;
+      const shift = from < k && k <= to ? -rects[from].height : to <= k && k < from ? rects[from].height : 0;
+      w.style.transform = shift ? `translateY(${shift}px)` : "";
+    });
+  };
+  const end = () => {
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", end);
+    handle.removeEventListener("pointercancel", end);
+    if (to !== from) {
+      const orders = rows.map(r => r.favOrder).sort((a, b) => a - b);   // 検索で隠れている記録の番号は動かさない
+      const moved = rows.slice(); moved.splice(to, 0, moved.splice(from, 1)[0]);
+      moved.forEach((r, k) => r.favOrder = orders[k]);
+      persist();
+    }
+    renderList();
+  };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", end);
+  handle.addEventListener("pointercancel", end);
+}
+function renderList() {
+  const chips = $("chips");
+  chips.innerHTML = "";
+  [{ id:"all", label:"すべて" }, { id:"fav", label:"♥お気に入り" }].forEach(c => {
+    const b = document.createElement("button");
+    b.className = "chip" + (c.id === filter ? " on" : "");
+    b.textContent = c.label;
+    b.onclick = () => { filter = c.id; renderList(); };
+    chips.appendChild(b);
+  });
+  const q = $("q").value.trim().toLowerCase();
+  let rows = records.filter(r => catOf(r.cat));
+  if (filter === "fav") rows = rows.filter(r => r.fav);
+  else if (filter !== "all") rows = rows.filter(r => r.cat === filter);
+  if (q) rows = rows.filter(r => JSON.stringify(r.vals).toLowerCase().includes(q));
+  const sort = $("sort").value;
+  const prefNo = r => { const m = (r.vals.area || "").match(PREF_RE); return m ? PREF_ORDER.indexOf(m[0]) : 99; };
+  const nameKey = r => titleOf(r.vals).trim();
+  const favView = filter === "fav";
+  if (favView) normalizeFavOrder();
+  $("sort").disabled = favView;   // お気に入りでは自分で決めた順に並べる
+  const dateCmp = (a, b, dir) => !a.vals.date !== !b.vals.date ? (a.vals.date ? -1 : 1)   // 日付なしは、どちらの向きでも最後
+    : dir * (a.vals.date || "").localeCompare(b.vals.date || "");
+  rows.sort((a, b) => favView ? a.favOrder - b.favOrder
+    : sort === "date" ? dateCmp(a, b, -1) || b.updated - a.updated
+    : sort === "dateAsc" ? dateCmp(a, b, 1) || a.updated - b.updated
+    : sort === "pref" ? (prefNo(a) - prefNo(b)) || nameKey(a).localeCompare(nameKey(b), "ja")
+    : b.updated - a.updated);
+  $("count").textContent = rows.length + "件";
+  const rowHtml = r => `
+    <button class="row" data-id="${r.id}">
+      <div class="t"><span>${esc(titleOf(r.vals))}</span>
+        <span class="stars-s">${stars(Number(r.vals.sat))}</span></div>
+      <div class="m">${esc(fmtDate(r.vals.date))}${r.vals.area ? " ・ " + esc(r.vals.area) : ""}</div>
+    </button>`;
+  const starBtn = r => `<button class="favb${r.fav ? " on" : ""}" data-fav="${r.id}" aria-label="お気に入り">${r.fav ? "♥" : "♡"}</button>`;
+  $("list").innerHTML = rows.length ? rows.map((r, i) => favView
+    ? `<div class="rowwrap">${starBtn(r)}${rowHtml(r)}<button class="dragh" data-id="${r.id}" aria-label="ドラッグして並べ替え">≡</button></div>`
+    : `<div class="rowwrap">${starBtn(r)}${rowHtml(r)}</div>`).join("")
+    : `<div class="empty">${favView ? "お気に入りはまだありません<br>記録を開いて右上の♡、または一覧の左端の♡で追加できます" : "まだ記録がありません<br>右下の + から追加できます"}</div>`;
+  $("list").querySelectorAll(".row").forEach(b => b.onclick = () => openDetail(b.dataset.id));
+  $("list").querySelectorAll(".favb").forEach(b => b.onclick = () => { toggleFav(b.dataset.fav); renderList(); });
+  $("list").querySelectorAll(".dragh").forEach(h => h.onpointerdown = e => startDrag(e, h, rows));
+}
+$("q").oninput = renderList;
+$("sort").onchange = renderList;
+
+// ===== 詳細 =====
+function openDetail(id) {
+  curId = id;
+  const r = records.find(x => x.id === id); if (!r) return;
+  const cat = catOf(r.cat), v = r.vals;
+  $("dFav").textContent = r.fav ? "♥" : "♡";
+  let html = `<div class="sec"><p class="big-title">${esc(titleOf(v))}</p>
+    <div class="m" style="color:var(--sub);font-size:13px;margin-top:4px">${esc(fmtDate(v.date))}</div>
+    ${v.sat ? `<div class="stars-s" style="font-size:20px;margin-top:6px">${stars(Number(v.sat))}</div>` : ""}</div>`;
+  if (v.urls && v.urls.trim()) html += `<div class="sec urls"><h2>リンク</h2>${v.urls.split("\n").map(linkHtml).join("")}</div>`;
+  cat.groups.forEach(g => {
+    let inner = "";
+    (g.basics || []).filter(it => !["name","date","urls"].includes(it.key)).forEach(it => {
+      if (v[it.key] || cat.private) inner += `<div class="kv"><span class="k">${esc(it.label.replace(/\(.*?\)/, ""))}</span><span class="v">${v[it.key] ? esc(v[it.key]) : DASH}</span></div>`;
+    });
+    (g.items || []).filter(it => it.key !== "sat").forEach(it => {
+      const val = v[it.key], cm = r.comments && r.comments[it.key];
+      if (!val && !cm && !cat.private) return;
+      const shown = it.type === "rating" ? stars(Number(val)) : it.type === "minutes" ? val + "分" : val;
+      if (it.type === "textarea") inner += `<div class="kv block"><span class="k">${esc(it.label)}</span><div class="v">${val ? esc(val) : DASH}</div></div>`;
+      else inner += `<div class="kv"><span class="k">${esc(it.label.replace(/\(.*?\)/, ""))}</span><span class="v">${!val ? DASH : it.type === "rating" ? `<span class="stars-s">${shown}</span>` : esc(shown || "")}${cm ? `<br><span style="color:var(--sub);font-size:13px">${esc(cm)}</span>` : ""}</span></div>`;
+    });
+    if (inner) html += `<div class="sec"><h2>${esc(g.title)}</h2>${inner}</div>`;
+  });
+  if (r.private || cat.private) html += `<div class="sec"><h2>個人メモ(AIには送りません)</h2><div class="kv block"><div class="v">${r.private ? esc(r.private) : DASH}</div></div></div>`;
+  $("dBody").innerHTML = html;
+  $("dPayloadText").hidden = true;
+  const g = $("dGen"); g.value = r.generated || ""; g.hidden = $("dGenBtns").hidden = !r.generated; $("dGenMsg").textContent = "";
+  show("pDetail");
+}
+$("dBack").onclick = () => { renderList(); show("pList"); };
+$("dFav").onclick = () => { toggleFav(curId); openDetail(curId); };
+$("dEdit").onclick = () => openEdit(curId);
+$("dDel").onclick = () => {
+  if (!confirm("この記録を削除します。よろしいですか?")) return;
+  records = records.filter(x => x.id !== curId); persist(); renderList(); show("pList");
+};
+$("dPayload").onclick = () => {
+  const r = records.find(x => x.id === curId), cat = catOf(r.cat), lines = [];
+  const strip = s => s.replace(/[(（].*?[)）]/, "");
+  cat.groups.forEach(g => {
+    (g.basics || []).filter(it => it.key !== "urls" && !(cat.private && it.key === "name")).forEach(it => { if (r.vals[it.key]) lines.push(`${strip(it.label)}: ${r.vals[it.key]}`); });
+    (g.items || []).forEach(it => {
+      if (r.use && r.use[it.key] === false) return;
+      const parts = [];
+      if (r.vals[it.key]) parts.push(it.type === "rating" ? `${r.vals[it.key]}/5` : it.type === "minutes" ? `${r.vals[it.key]}分` : r.vals[it.key]);
+      if (r.comments && r.comments[it.key]) parts.push(r.comments[it.key]);
+      if (parts.length) lines.push(`${strip(it.label)}: ${parts.join(" ・ ")}`);
+    });
+  });
+  const pre = $("dPayloadText"); pre.hidden = false; pre.textContent = lines.join("\n");
+};
+
+// ===== 口コミ文を作る(仮の自動文章。名前は使わない) =====
+function buildReview(r) {
+  const cat = catOf(r.cat), v = r.vals, out = [];
+  const place = cat.private ? v.shop : v.name;
+  const verb = cat.private ? "利用" : cat.id === "stay" ? "宿泊" : "訪問";
+  const d = v.date ? v.date.split("-") : null;
+  const when = d ? `${Number(d[0])}年${Number(d[1])}月に` : "";
+  if (place || v.area) out.push(`${when}${place || ""}${v.area ? (place ? `(${v.area})` : v.area) : ""}を${verb}しました。`);
+  if (v.review) out.push("", v.review.trim());
+  return out.join("\n").trim();
+}
+$("dGenBtn").onclick = () => {
+  const r = records.find(x => x.id === curId);
+  const text = buildReview(r);
+  if (!text) { $("dGenMsg").textContent = "入力が少なすぎて作れません。評価などを書いてください"; return; }
+  if ($("dGen").value && $("dGen").value !== text && !confirm("今ある文章は作り直した文章に置き換わります。よろしいですか?")) return;
+  $("dGen").value = text; $("dGen").hidden = $("dGenBtns").hidden = false; $("dGenMsg").textContent = "";
+};
+$("dGenCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("dGen").value); $("dGenMsg").textContent = "コピーしました"; }
+  catch (e) { $("dGen").select(); $("dGenMsg").textContent = "選択しました。コピーしてください"; }
+};
+$("dGenSave").onclick = () => { const r = records.find(x => x.id === curId); r.generated = $("dGen").value; persist(); $("dGenMsg").textContent = "保存しました"; };
+
+// ===== 編集 =====
+function inputHtml(it) {
+  const k = it.key;
+  switch (it.type) {
+    case "rating": return `<div class="stars" data-stars="${k}">` + [1,2,3,4,5].map(n => `<button type="button" data-v="${n}">${n}</button>`).join("") + `</div><input type="text" data-comment="${k}" placeholder="一言(任意)">`;
+    case "minutes": return `<input type="number" min="0" inputmode="numeric" data-val="${k}" placeholder="例: 10">`;
+    case "select": return `<select data-val="${k}"><option value="">選択してください</option>` + it.options.map(o => `<option>${esc(o)}</option>`).join("") + `</select>`;
+    case "textarea": return `<textarea data-val="${k}" placeholder="${esc(it.placeholder || "")}" ${k === "review" ? 'style="min-height:140px"' : ""}></textarea>`;
+    case "url": return `<textarea data-val="${k}" placeholder="${esc(it.placeholder || "")}" style="min-height:56px"></textarea>`;
+    case "date": return `<input type="date" data-val="${k}">`;
+    default: return `<input type="text" data-val="${k}" placeholder="${esc(it.placeholder || "")}">`;
+  }
+}
+function openEdit(id, catId) {
+  const existing = id && records.find(x => x.id === id);
+  draft = existing ? JSON.parse(JSON.stringify(existing))
+    : { id:"r" + Date.now(), cat:catId, fav:false, vals:{ date:today() }, comments:{}, use:{}, private:"", updated:Date.now() };
+  const cat = catOf(draft.cat);
+  $("eTitle").textContent = existing ? "編集" : "新規";
+  let html = "";
+  cat.groups.forEach(g => {
+    html += `<div class="sec"><h2>${esc(g.title)}</h2>`;
+    (g.basics || []).forEach(it => {
+      html += `<label class="lbl">${esc(it.label)}</label>${inputHtml(it)}`;
+      if (it.key === "urls") html += `<button type="button" class="btn sub" id="readBtn" style="margin-top:6px">URLから名前・住所を読み取る</button><div id="readMsg" style="font-size:12px;color:var(--sub);margin-top:4px"></div>`;
+    });
+    (g.items || []).forEach(it => {
+      html += `<div class="item"><div class="item-head"><strong>${esc(it.label)}</strong><label class="use"><input type="checkbox" data-use="${it.key}" checked> 文章に使う</label></div>${inputHtml(it)}</div>`;
+    });
+    html += `</div>`;
+  });
+  html += `<div class="sec"><h2>個人メモ(AIには送りません)</h2><textarea id="ePrivate" placeholder="自由に書けます。AIには送られません。"></textarea></div>`;
+  $("eBody").innerHTML = html;
+  const b = $("eBody");
+  b.querySelectorAll("[data-val]").forEach(el => {
+    el.value = draft.vals[el.dataset.val] ?? "";
+    el.oninput = e => {
+      // 費用: 数字だけを入れたら、3桁区切りにして「円」を付ける(文字を混ぜて書くときは何もしない)
+      if (el.dataset.val === "cost" && !(e && e.inputType && e.inputType.startsWith("delete")) && /^[\d,]+円?$/.test(el.value)) {
+        const digits = el.value.replace(/[^\d]/g, "");
+        if (digits) { el.value = Number(digits).toLocaleString("ja-JP") + "円"; el.setSelectionRange(el.value.length - 1, el.value.length - 1); }
+      }
+      draft.vals[el.dataset.val] = el.value;
+    };
+  });
+  b.querySelectorAll("[data-comment]").forEach(el => { el.value = draft.comments[el.dataset.comment] ?? ""; el.oninput = () => draft.comments[el.dataset.comment] = el.value; });
+  b.querySelectorAll("[data-use]").forEach(el => { if (draft.use[el.dataset.use] === false) el.checked = false; el.onchange = () => draft.use[el.dataset.use] = el.checked; });
+  b.querySelectorAll("[data-stars]").forEach(box => {
+    const k = box.dataset.stars;
+    const paint = () => box.querySelectorAll("button").forEach(x => x.classList.toggle("on", Number(x.dataset.v) === Number(draft.vals[k])));
+    box.onclick = e => { const x = e.target.closest("button"); if (!x) return; draft.vals[k] = Number(draft.vals[k]) === Number(x.dataset.v) ? "" : x.dataset.v; paint(); };
+    paint();
+  });
+  $("readBtn").onclick = readFromUrl;
+  $("ePrivate").value = draft.private || ""; $("ePrivate").oninput = e => draft.private = e.target.value;
+  show("pEdit");
+}
+$("eCancel").onclick = () => { if (records.some(x => x.id === draft.id)) openDetail(draft.id); else { renderList(); show("pList"); } };
+$("eSave").onclick = () => {
+  draft.updated = Date.now();
+  const i = records.findIndex(x => x.id === draft.id);
+  if (i >= 0) records[i] = draft; else records.push(draft);
+  persist(); openDetail(draft.id);
+};
+
+// ===== URLから名前・住所を読み取る =====
+// 読み取り用サーバー(Cloudflare Worker)のURLをここに入れる。空のままだと読み取りは使えない。
+const READER_URL = "https://memo-reader.qteunzhuxsyjbnatmnr.workers.dev/";
+const PREF_SLUG = { hokkaido:"北海道", aomori:"青森県", iwate:"岩手県", miyagi:"宮城県", akita:"秋田県", yamagata:"山形県", fukushima:"福島県", ibaraki:"茨城県", tochigi:"栃木県", gunma:"群馬県", saitama:"埼玉県", chiba:"千葉県", tokyo:"東京都", kanagawa:"神奈川県", niigata:"新潟県", toyama:"富山県", ishikawa:"石川県", fukui:"福井県", yamanashi:"山梨県", nagano:"長野県", gifu:"岐阜県", shizuoka:"静岡県", aichi:"愛知県", mie:"三重県", shiga:"滋賀県", kyoto:"京都府", osaka:"大阪府", hyogo:"兵庫県", nara:"奈良県", wakayama:"和歌山県", tottori:"鳥取県", shimane:"島根県", okayama:"岡山県", hiroshima:"広島県", yamaguchi:"山口県", tokushima:"徳島県", kagawa:"香川県", ehime:"愛媛県", kochi:"高知県", fukuoka:"福岡県", saga:"佐賀県", nagasaki:"長崎県", kumamoto:"熊本県", oita:"大分県", miyazaki:"宮崎県", kagoshima:"鹿児島県", okinawa:"沖縄県" };
+// URLの最初の階層が都道府県名(例: /ibaraki/...)のとき、都道府県を返す
+function prefFromUrl(u) {
+  try { const seg = new URL(u).pathname.split("/").filter(Boolean)[0]; return PREF_SLUG[(seg || "").toLowerCase()] || ""; } catch (e) { return ""; }
+}
+// ページの題名から店名とエリアを取り出す。例:「〇〇」店名 - 土浦市/業種｜サイト名 → 店名 / 土浦市(先頭の「」は名前なので捨てる)
+function parseTitle(t) {
+  t = (t || "").replace(/\s+/g, " ").trim();
+  const person = "";
+  const m = t.match(/^(?:「[^」]*」\s*)?(.+?)\s*[-－–]\s*(.+?)\s*\/\s*[^｜|]+\s*[｜|]/);
+  if (m) return { person, name: m[1].trim(), area: m[2].trim() };
+  const head = t.split(/\s*[｜|]\s*/)[0].replace(/^「[^」]*」\s*/, "").trim();
+  return { person, name: head, area: "" };
+}
+// 入力欄に値を入れる(空欄、または今の値を含む詳しい値のときだけ。違う値が入っているときは上書きしない)
+function fillField(key, val, label) {
+  if (!val) return null;
+  const el = document.querySelector(`#eBody [data-val=${key}]`);
+  if (!el) return null;
+  if (el.value && el.value !== val && !val.startsWith(el.value)) return null;
+  el.value = val; draft.vals[key] = val; return label;
+}
+let shareTitle = "";   // 共有から受け取ったページの題名(読み取れなかったときに使う)
+function applyTitle(t, first) {
+  const hasShop = !!document.querySelector("#eBody [data-val=shop]");
+  const r = parseTitle(t), done = [];
+  if (hasShop) { done.push(fillField("name", r.person || r.name, "名前"), fillField("shop", r.name, "店名")); }
+  else done.push(fillField("name", r.person || r.name, "名前"));
+  if (r.area) { const pf = prefFromUrl(first); done.push(fillField("area", pf && !r.area.startsWith(pf) ? pf + r.area : r.area, "住所")); }
+  return done.filter(Boolean);
+}
+// 住所の整形: 空白や改行をまとめ、全角の数字・ハイフンを半角にし、郵便番号は「〒123-4567 」の形にそろえる
+function cleanAddress(a) {
+  let t = (a || "").replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[－ー‐―]/g, "-").replace(/\s+/g, " ").trim();
+  t = t.replace(/^〒?\s?(\d{3}-\d{4})\s*/, "〒$1 ");
+  return t;
+}
+// チェーン店のサイト(URLの一部, ブランド名)。増やしたいときはここに足す
+const BRANDS = [[/mcdonalds\.co\.jp/i, "マクドナルド"]];
+async function fetchReader(url) {
+  for (let i = 0; i < 2; i++) {   // 1回目が寝起きで遅いことがあるので、1回だけやり直す
+    try {
+      const res = await fetch(READER_URL + "?url=" + encodeURIComponent(url), { signal: AbortSignal.timeout(8000) });
+      const j = await res.json();
+      if (res.ok && !j.error && j.name && !/^(403|404|5\d\d|Access Denied|Forbidden|Just a moment)/i.test(j.name)) return j;
+      return null;                 // サイトに断られた等はやり直しても同じ
+    } catch (e) {}
+  }
+  return null;
+}
+async function readFromUrl() {
+  const msg = $("readMsg"), btn = $("readBtn");
+  const first = (draft.vals.urls || "").split(/\r?\n/).map(x => x.trim()).find(x => /^https?:\/\/\S+$/i.test(x));
+  if (!first) { msg.textContent = "先にURLを入力してください(http または https から始まるもの)"; return; }
+  if (!READER_URL) { msg.textContent = "読み取り用サーバーがまだ設定されていません"; return; }
+  btn.disabled = true; msg.textContent = "読み取り中…(数秒かかることがあります)";
+  try {
+    const d = await fetchReader(first);
+    if (d) {
+      const hasShop = !!document.querySelector("#eBody [data-val=shop]");
+      const pm = null;
+      const brand = BRANDS.find(([re]) => re.test(first));   // チェーン店: 名前=ブランド名、店名=各店舗名
+      if (brand) {
+        const store = d.name.replace(/^【[^】]*】\s*/, "");
+        const done = [fillField("name", hasShop ? brand[1] : `${brand[1]} ${store}`, "名前"), hasShop ? fillField("shop", store, "店名") : null, fillField("area", cleanAddress(d.address), "住所")].filter(Boolean);
+        msg.textContent = done.length ? done.join("・") + "を反映しました。内容を確認してください" : "名前・住所が見つかりませんでした(すでに入力がある場合は上書きしません)";
+        return;
+      }
+      const clean = d.name.replace(/^【[^】]*】\s*/, "");   // 【公式】などの飾りは外す
+      const person = pm ? pm[1] : "", shop = pm ? pm[2] : clean;
+      // 個人ページなら 名前=名前・店名=店。ふつうのお店のページなら 名前にも店名にもお店の名前を入れる
+      const done = [fillField("name", pm ? person : clean, hasShop && pm ? "名前(名前)" : "名前"),
+                    hasShop ? fillField("shop", shop, "店名") : null, fillField("area", cleanAddress(d.address), "住所")].filter(Boolean);
+      msg.textContent = done.length ? done.join("・") + "を反映しました。内容を確認してください" : "名前・住所が見つかりませんでした(すでに入力がある場合は上書きしません)";
+    } else {
+      // 読めなかったとき: URLから都道府県だけ入れ、ページの題名を貼ってもらう
+      const pref = fillField("area", prefFromUrl(first), "都道府県");
+      if (shareTitle) {   // 共有から来たときは、題名をもう持っているので、貼り付けてもらわずに使う
+        const ok = [pref, ...applyTitle(shareTitle, first)].filter(Boolean); shareTitle = "";
+        msg.textContent = ok.length ? ok.join("・") + "を反映しました。内容を確認してください" : "反映できませんでした。手入力してください";
+        return;
+      }
+      msg.innerHTML = `${pref ? "都道府県を反映しました。<br>" : ""}このサイトは自動で読めませんでした。ブラウザで開いたページの題名(タブに出る文字)を貼り付けてください。` +
+        `<textarea id="titleIn" style="min-height:50px;margin-top:6px" placeholder="ここに貼り付け"></textarea>` +
+        `<button type="button" class="btn sub" id="titleBtn" style="margin-top:6px">題名から反映する</button>`;
+      $("titleBtn").onclick = () => {
+        const t = $("titleIn").value.trim();
+        if (!t) return;
+        const ok = applyTitle(t, first);
+        msg.textContent = ok.length ? ok.join("・") + "を反映しました。内容を確認してください" : "反映できませんでした。手入力してください";
+      };
+    }
+  } catch (e) {
+    msg.textContent = "読み取れませんでした。手入力してください";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ===== 追加 =====
+$("addBtn").onclick = () => openEdit(null, CATEGORIES[0].id);
+
+// ===== バックアップ =====
+$("exportBtn").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(records)], { type:"application/json" }));
+  a.download = `メモメモリー_${today()}.json`; a.click();
+};
+$("importBtn").onclick = () => $("importFile").click();
+$("importFile").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const data = JSON.parse(rd.result);
+      if (!Array.isArray(data)) throw 0;
+      if (!confirm(`${data.length}件を読み込みます。今のデータは置き換わります。よろしいですか?`)) return;
+      records = data; persist(); renderList();
+    } catch (err) { alert("読み込めませんでした"); }
+  };
+  rd.readAsText(f); e.target.value = "";
+};
+
+// ===== ロック(パスコード+暗号化) =====
+const PIN_RE = /^[0-9]{4,6}$/;
+// パスコードを設定(変更)する: 暗号化して書き込み、読み戻して確認できてから、ロックなしのデータを消す
+async function enableLock(pin) {
+  const salt = toB64(crypto.getRandomValues(new Uint8Array(16)));
+  const key = await deriveKey(pin, salt);
+  const check = await encStr(key, "ok");
+  const snap = JSON.stringify(records);
+  const data = await encStr(key, snap);
+  if (await decStr(key, data) !== snap) throw new Error("verify");
+  localStorage.setItem(ENC_KEY, JSON.stringify(data));
+  localStorage.setItem(LOCK_KEY, JSON.stringify({ salt, check }));
+  localStorage.removeItem(KEY);
+  lockCfg = { salt, check }; cryptoKey = key;
+}
+function disableLock() {
+  localStorage.setItem(KEY, JSON.stringify(records));
+  localStorage.removeItem(ENC_KEY); localStorage.removeItem(LOCK_KEY);
+  lockCfg = null; cryptoKey = null;
+}
+let lockFails = 0;
+function showLock(msg) {
+  records = []; cryptoKey = null; draft = null; curId = null;
+  ["eBody", "dBody", "list"].forEach(id => $(id).innerHTML = "");
+  $("dGen").value = ""; $("dPayloadText").textContent = "";
+  ["menuSheet", "helpSheet", "pinSheet"].forEach(id => $(id).hidden = true);
+  show("pList");
+  $("lockPin").value = ""; $("lockMsg").textContent = msg || "";
+  $("lockScreen").hidden = false;
+  setTimeout(() => $("lockPin").focus(), 50);
+}
+async function tryUnlock() {
+  const pin = $("lockPin").value;
+  if (!PIN_RE.test(pin)) { $("lockMsg").textContent = "数字4〜6桁で入力してください"; return; }
+  $("lockGo").disabled = true;
+  try {
+    const key = await deriveKey(pin, lockCfg.salt);
+    if (await decStr(key, lockCfg.check) !== "ok") throw new Error("bad");
+    const enc = localStorage.getItem(ENC_KEY);
+    records = enc ? JSON.parse(await decStr(key, JSON.parse(enc))) : [];
+    cryptoKey = key; lockFails = 0;
+    $("lockScreen").hidden = true; $("lockPin").value = "";
+    renderList(); show("pList"); handleShare();
+  } catch (e) {
+    lockFails++;
+    $("lockPin").value = "";
+    const wait = lockFails >= 5 ? Math.min(60, (lockFails - 4) * 10) : 0;   // 5回まちがえると少し待たされる
+    $("lockMsg").textContent = wait ? `パスコードが違います。${wait}秒待ってからもう一度` : "パスコードが違います";
+    if (wait) { await new Promise(r => setTimeout(r, wait * 1000)); $("lockMsg").textContent = ""; }
+  }
+  $("lockGo").disabled = false;
+}
+$("lockGo").onclick = tryUnlock;
+$("lockPin").onkeydown = e => { if (e.key === "Enter") tryUnlock(); };
+$("lockReset").onclick = () => {
+  if (!confirm("パスコードを忘れた場合、保存されているメモをすべて消して、最初からやり直します。\n(書き出したバックアップがあれば、あとで読み込めます)\n\nすべて消してよろしいですか?")) return;
+  localStorage.removeItem(ENC_KEY); localStorage.removeItem(LOCK_KEY);
+  lockCfg = null; cryptoKey = null; records = []; persist();
+  $("lockScreen").hidden = true; renderList(); show("pList");
+};
+// アプリを30秒以上はなれたら、自動でロックする
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) hiddenAt = Date.now();
+  else if (lockCfg && cryptoKey && hiddenAt && Date.now() - hiddenAt > 30000) showLock();
+});
+
+// 「機能」の中のロック欄
+function renderLockArea() {
+  const a = $("lockArea");
+  if (!lockCfg) {
+    a.innerHTML = `<button class="btn sub" id="lkSet" style="margin:0">パスコードを設定</button><div style="font-size:12px;color:var(--sub);margin-top:6px">今はロックなしです。</div>`;
+    $("lkSet").onclick = () => openPinSheet("設定");
+  } else {
+    a.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sub" id="lkNow" style="margin:0;flex:1">今すぐロック</button><button class="btn sub" id="lkChg" style="margin:0;flex:1">変更</button><button class="btn sub" id="lkOff" style="margin:0;flex:1">解除</button></div><div style="font-size:12px;color:var(--sub);margin-top:6px">ロック中です。メモは暗号化されて保存されています。</div>`;
+    $("lkNow").onclick = () => showLock();
+    $("lkChg").onclick = () => openPinSheet("変更");
+    $("lkOff").onclick = () => {
+      if (!confirm("ロックを解除します。メモの暗号化もやめ、パスコードなしで開けるようになります。よろしいですか?")) return;
+      disableLock(); renderLockArea();
+    };
+  }
+}
+function openPinSheet(title) {
+  $("pinTitle").textContent = `パスコードを${title}`; $("pinOk").textContent = `${title}する`;
+  $("pinA").value = $("pinB").value = ""; $("pinMsg").textContent = "";
+  $("pinSheet").hidden = false; setTimeout(() => $("pinA").focus(), 50);
+}
+$("pinCancel").onclick = () => $("pinSheet").hidden = true;
+$("pinOk").onclick = async () => {
+  const a = $("pinA").value, b = $("pinB").value, msg = $("pinMsg");
+  if (!PIN_RE.test(a)) { msg.textContent = "数字4〜6桁で入力してください"; return; }
+  if (a !== b) { msg.textContent = "2つの入力が一致しません"; return; }
+  $("pinOk").disabled = true; msg.textContent = "設定しています…";
+  try { await enableLock(a); $("pinSheet").hidden = true; renderLockArea(); }
+  catch (e) { msg.textContent = "設定できませんでした。もう一度お試しください"; }
+  $("pinOk").disabled = false;
+};
+{ const old = $("menuBtn").onclick; $("menuBtn").onclick = () => { renderLockArea(); old(); }; }
+
+// ===== 共有から受け取る(ブラウザの「共有」でこのアプリを選んだとき) =====
+let pendingShare = null;
+try {
+  const q = new URLSearchParams(location.search);
+  const title = q.get("title") || "", text = q.get("text") || "", url = q.get("url") || "";
+  const m = (url || text).match(/https?:\/\/\S+/);
+  if (m || title) pendingShare = { url: m ? m[0] : "", title };
+  if (location.search) history.replaceState(null, "", location.pathname);
+} catch (e) {}
+function handleShare() {
+  if (!pendingShare) return;
+  const sh = pendingShare; pendingShare = null;
+  openEdit(null, CATEGORIES[0].id);
+  if (sh.url) {
+    const u = document.querySelector("#eBody [data-val=urls]");
+    u.value = sh.url; draft.vals.urls = sh.url;
+    shareTitle = sh.title;
+    readFromUrl();
+  } else if (sh.title) {
+    const ok = applyTitle(sh.title, "");
+    $("readMsg").textContent = ok.length ? ok.join("・") + "を反映しました。内容を確認してください" : "";
+  }
+}
+
+if (lockCfg) showLock(); else { renderList(); handleShare(); }
+if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) navigator.serviceWorker.register("sw.js").catch(function () {});
+</script>
+</body>
+</html>
