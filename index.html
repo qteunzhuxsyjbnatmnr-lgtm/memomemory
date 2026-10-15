@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="メモメモリー">
 <style>
-  :root { --bg:#050505; --card:#161616; --card2:#232323; --line:#2a2a2a; --text:#f2f2f2; --sub:#9a9a9a; --green:#a78bfa; --gold:#e0b13a; --heart:#f0628a; --red:#ff8080; --on:#1c1140; }
-  :root[data-theme="blue"]   { --green:#4aa3ff; --on:#04203d; }
+  :root { --bg:#050505; --card:#161616; --card2:#232323; --line:#2a2a2a; --text:#f2f2f2; --sub:#9a9a9a; --green:#6cc4f0; --gold:#e0b13a; --heart:#f0628a; --red:#ff8080; --on:#06263d; }
+  :root[data-theme="purple"] { --green:#a78bfa; --on:#1c1140; }
   :root[data-theme="green"]  { --green:#21c58c; --on:#08251a; }
   :root[data-theme="pink"]   { --green:#f472b6; --on:#400a24; }
   :root[data-theme="orange"] { --green:#fb923c; --on:#3d1a02; }
   /* ライト表示: 背景と文字を明るくし、色ごとに見やすい濃さのアクセント色にする */
-  :root[data-mode="light"] { --bg:#f3f4f6; --card:#ffffff; --card2:#eceef1; --line:#d9dce1; --text:#1f2328; --sub:#6b7280; --on:#ffffff; --gold:#c8920a; --red:#d64545; --heart:#e0457b; --green:#6d4ad8; }
-  :root[data-mode="light"][data-theme="blue"]   { --green:#1d6fd6; --on:#ffffff; }
+  :root[data-mode="light"] { --bg:#f3f4f6; --card:#ffffff; --card2:#eceef1; --line:#d9dce1; --text:#1f2328; --sub:#6b7280; --on:#ffffff; --gold:#c8920a; --red:#d64545; --heart:#e0457b; --green:#1a86c7; }
+  :root[data-mode="light"][data-theme="purple"] { --green:#6d4ad8; --on:#ffffff; }
   :root[data-mode="light"][data-theme="green"]  { --green:#0f9d6e; --on:#ffffff; }
   :root[data-mode="light"][data-theme="pink"]   { --green:#d63384; --on:#ffffff; }
   :root[data-mode="light"][data-theme="orange"] { --green:#d9631a; --on:#ffffff; }
@@ -281,8 +281,8 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&l
 const $ = id => document.getElementById(id);
 
 // ===== 色の切り替え =====
-const DEFAULT_THEME = "purple";   // ベストログ(グリーン)と見分けるため、最初の色はパープル
-const THEMES = [["purple","パープル"],["blue","ブルー"],["green","グリーン"],["pink","ピンク"],["orange","オレンジ"]];
+const DEFAULT_THEME = "blue";   // アイコンの水色に合わせた色。ベストログ(グリーン)とも見分けられる
+const THEMES = [["blue","ブルー"],["purple","パープル"],["green","グリーン"],["pink","ピンク"],["orange","オレンジ"]];
 function applyTheme(t) {
   if (t === DEFAULT_THEME) document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
   try { localStorage.setItem("memo-theme", t); } catch (e) {}
