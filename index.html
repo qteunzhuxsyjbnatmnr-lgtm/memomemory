@@ -37,6 +37,8 @@
   .chip { flex:none; padding:6px 12px; border:1px solid var(--line); background:var(--card2); color:var(--text); border-radius:16px; font-size:13px; }
   .hbtn { padding:6px 12px; border:1px solid var(--green); background:var(--card2); color:var(--green); border-radius:8px; font-size:13px; font-weight:600; font-family:inherit; margin-left:4px; }
   .rowwrap { display:flex; align-items:stretch; border-bottom:1px solid var(--line); }
+  .hint { font-size:12px; color:var(--sub); margin:4px 0 6px; }
+  .aibtn { font-size:13px; padding:8px 12px; border:1px solid var(--green); border-radius:8px; text-decoration:none; color:var(--green); }
   .heart { display:block; margin:0 auto; }
   #chips .heart { display:inline-block; vertical-align:-2px; margin:0; color:var(--heart); }
   .favb { flex:none; width:46px; border:none; background:none; color:var(--sub); font-size:22px; padding:0; font-family:inherit; }
@@ -135,18 +137,8 @@
     </span>
   </div></header>
   <div id="dBody"></div>
+  <div id="dPrivBody"></div>
   <div class="sec" style="border:none">
-    <h2 style="font-size:13px;color:var(--green);margin:0 0 4px">口コミ文</h2>
-    <div style="font-size:12px;color:var(--sub);margin-bottom:6px">入力した内容から、仮の文章を作ります。自由に直せます。</div>
-    <button class="btn" id="dGenBtn" style="margin-top:0">文章を作る</button>
-    <textarea id="dGen" style="min-height:200px;margin-top:8px" placeholder="「文章を作る」を押すと、ここに文章が出ます" hidden></textarea>
-    <div id="dGenBtns" style="display:flex;gap:8px" hidden>
-      <button class="btn sub" id="dGenCopy">コピー</button>
-      <button class="btn sub" id="dGenSave">この文章を保存</button>
-    </div>
-    <div id="dGenMsg" style="font-size:12px;color:var(--sub);margin-top:4px"></div>
-    <button class="btn sub" id="dPayload" style="margin-top:16px">AIに送る内容を確認</button>
-    <pre id="dPayloadText" hidden></pre>
     <button class="btn del" id="dDel">削除</button>
   </div>
 </div>
@@ -216,8 +208,10 @@
     <h3>URLから名前・住所を入れる</h3>
     <p>URL欄にお店のページのURLを貼り、「URLから名前・住所を読み取る」を押します。ページに書かれている範囲だけが入り、すでに入っている欄は上書きしません。</p>
     <p>サイトに断られた時は、ブラウザに出る「ページの題名」を貼る欄が出ます。貼って「題名から反映する」を押してください。</p>
-    <h3>文章を作る</h3>
-    <p>記録を開いて「文章を作る」を押すと、日付・店名・住所・感想から文章のもとができます。自由に直して、「コピー」や「この文章を保存」ができます。</p>
+    <h3>AIを使わずに文章を作る</h3>
+    <p>記録を開いて「AIを使わず、アプリで簡単に作る」を押すと、日付・店名・住所・感想から、文章のもとができます。自由に直して、「コピー」や「保存」ができます。</p>
+    <h3>感想を口コミ文にする</h3>
+    <p>記録を開いて、「感想をコピー」を押し、「ChatGPT / Gemini / Claudeを開く」から、お使いのAIに貼り付けて、整えてもらいます。できた文章は、編集画面の「口コミ」の欄に貼り付けて保存すると、あとで「口コミをコピー」で取り出せます。このアプリは、文章をAIには送りません。</p>
     <h3>お気に入り・さがす</h3>
     <p>記録を開いた右上のハート、または一覧の左端のハートで、お気に入りにできます。一覧では「お気に入り」で絞り込み、上の欄で文字検索ができます。</p>
     <h3>個人メモ</h3>
@@ -242,10 +236,12 @@ const BASIC_COMMON = [
   { key:"urls", label:"URL(1行に1つ)", type:"url", placeholder:"https://..." },
 ];
 const review = ph => ({ title:"感想", items:[{ key:"review", label:"感想(自由に書く)", type:"textarea", placeholder:ph }] });
+const kuchikomiGroup = { title:"口コミ", items:[{ key:"kuchikomi", label:"口コミ(AIで整えた文章を貼る)", type:"textarea", placeholder:"AIが作った文章を、ここに貼り付けます" }] };
 const CATEGORIES = [
   { id:"memo", label:"メモ", private:true, groups:[
     { title:"基本情報", basics:[BASIC_COMMON[0], { key:"shop", label:"店名", type:"text", placeholder:"例: 〇〇店" }, ...BASIC_COMMON.slice(1)] },
-    review("例: 予約はスムーズ。待ち時間は10分。料金は説明どおり。清潔感があり、時間も守られた。") ]},
+    review("例: 予約はスムーズ。待ち時間は10分。料金は説明どおり。清潔感があり、時間も守られた。"),
+    kuchikomiGroup ]},
 ];
 const catOf = () => CATEGORIES[0];   // 種類は1つだけ(古い記録も同じ形で表示する)
 
@@ -470,15 +466,19 @@ function openDetail(id) {
       const val = v[it.key], cm = r.comments && r.comments[it.key];
       if (!val && !cm && !cat.private) return;
       const shown = it.type === "rating" ? stars(Number(val)) : it.type === "minutes" ? val + "分" : val;
-      if (it.type === "textarea") inner += `<div class="kv block"><span class="k">${esc(it.label)}</span><div class="v">${val ? esc(val) : DASH}</div></div>`;
+      if (it.type === "textarea") inner += `<div class="kv block"><span class="k">${esc(it.label)}</span><div class="v">${val ? esc(val) : DASH}</div></div>`
+        + (val && (it.key === "review" || it.key === "kuchikomi") ? `<button type="button" class="btn sub copyb" data-copy="${it.key}" style="margin-top:8px">${it.key === "review" ? "感想をコピー" : "口コミをコピー"}</button>` : "");
       else inner += `<div class="kv"><span class="k">${esc(it.label.replace(/\(.*?\)/, ""))}</span><span class="v">${!val ? DASH : it.type === "rating" ? `<span class="stars-s">${shown}</span>` : esc(shown || "")}${cm ? `<br><span style="color:var(--sub);font-size:13px">${esc(cm)}</span>` : ""}</span></div>`;
     });
+    if (g.title === "感想") inner += `<div class="hint" style="margin-top:12px">コピーした感想を、お使いのAIに貼ると、口コミ文に整えてもらえます。</div><div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="aibtn" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPTを開く</a>
+        <a class="aibtn" href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer">Geminiを開く</a>
+        <a class="aibtn" href="https://claude.ai/" target="_blank" rel="noopener noreferrer">Claudeを開く</a></div>`;
     if (inner) html += `<div class="sec"><h2>${esc(g.title)}</h2>${inner}</div>`;
   });
-  if (r.private || cat.private) html += `<div class="sec"><h2>個人メモ(AIには送りません)</h2><div class="kv block"><div class="v">${r.private ? esc(r.private) : DASH}</div></div></div>`;
+  $("dPrivBody").innerHTML = (r.private || cat.private) ? `<div class="sec"><h2>個人メモ</h2><div class="kv block"><div class="v">${r.private ? esc(r.private) : DASH}</div></div></div>` : "";
   $("dBody").innerHTML = html;
-  $("dPayloadText").hidden = true;
-  const g = $("dGen"); g.value = r.generated || ""; g.hidden = $("dGenBtns").hidden = !r.generated; $("dGenMsg").textContent = "";
+  $("dBody").querySelectorAll(".copyb").forEach(b => b.onclick = () => copyText(r.vals[b.dataset.copy] || "", b));
   show("pDetail");
 }
 $("dBack").onclick = () => { renderList(); show("pList"); };
@@ -488,45 +488,17 @@ $("dDel").onclick = () => {
   if (!confirm("この記録を削除します。よろしいですか?")) return;
   records = records.filter(x => x.id !== curId); persist(); renderList(); show("pList");
 };
-$("dPayload").onclick = () => {
-  const r = records.find(x => x.id === curId), cat = catOf(r.cat), lines = [];
-  const strip = s => s.replace(/[(（].*?[)）]/, "");
-  cat.groups.forEach(g => {
-    (g.basics || []).filter(it => it.key !== "urls" && !(cat.private && it.key === "name")).forEach(it => { if (r.vals[it.key]) lines.push(`${strip(it.label)}: ${r.vals[it.key]}`); });
-    (g.items || []).forEach(it => {
-      if (r.use && r.use[it.key] === false) return;
-      const parts = [];
-      if (r.vals[it.key]) parts.push(it.type === "rating" ? `${r.vals[it.key]}/5` : it.type === "minutes" ? `${r.vals[it.key]}分` : r.vals[it.key]);
-      if (r.comments && r.comments[it.key]) parts.push(r.comments[it.key]);
-      if (parts.length) lines.push(`${strip(it.label)}: ${parts.join(" ・ ")}`);
-    });
-  });
-  const pre = $("dPayloadText"); pre.hidden = false; pre.textContent = lines.join("\n");
-};
-
-// ===== 口コミ文を作る(仮の自動文章。名前は使わない) =====
-function buildReview(r) {
-  const cat = catOf(r.cat), v = r.vals, out = [];
-  const place = cat.private ? v.shop : v.name;
-  const verb = cat.private ? "利用" : cat.id === "stay" ? "宿泊" : "訪問";
-  const d = v.date ? v.date.split("-") : null;
-  const when = d ? `${Number(d[0])}年${Number(d[1])}月に` : "";
-  if (place || v.area) out.push(`${when}${place || ""}${v.area ? (place ? `(${v.area})` : v.area) : ""}を${verb}しました。`);
-  if (v.review) out.push("", v.review.trim());
-  return out.join("\n").trim();
+// コピーする(押したボタンの文字を、一瞬「コピーしました」に変える)
+async function copyText(text, btn) {
+  const label = btn.textContent;
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; }
+  catch (e) {
+    try { const t = document.createElement("textarea"); t.value = text; t.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(t); t.select(); ok = document.execCommand("copy"); t.remove(); } catch (e2) {}
+  }
+  btn.textContent = ok ? "コピーしました" : "コピーできませんでした";
+  setTimeout(() => { btn.textContent = label; }, 1800);
 }
-$("dGenBtn").onclick = () => {
-  const r = records.find(x => x.id === curId);
-  const text = buildReview(r);
-  if (!text) { $("dGenMsg").textContent = "入力が少なすぎて作れません。評価などを書いてください"; return; }
-  if ($("dGen").value && $("dGen").value !== text && !confirm("今ある文章は作り直した文章に置き換わります。よろしいですか?")) return;
-  $("dGen").value = text; $("dGen").hidden = $("dGenBtns").hidden = false; $("dGenMsg").textContent = "";
-};
-$("dGenCopy").onclick = async () => {
-  try { await navigator.clipboard.writeText($("dGen").value); $("dGenMsg").textContent = "コピーしました"; }
-  catch (e) { $("dGen").select(); $("dGenMsg").textContent = "選択しました。コピーしてください"; }
-};
-$("dGenSave").onclick = () => { const r = records.find(x => x.id === curId); r.generated = $("dGen").value; persist(); $("dGenMsg").textContent = "保存しました"; };
 
 // ===== 編集 =====
 function inputHtml(it) {
@@ -535,7 +507,7 @@ function inputHtml(it) {
     case "rating": return `<div class="stars" data-stars="${k}">` + [1,2,3,4,5].map(n => `<button type="button" data-v="${n}">${n}</button>`).join("") + `</div><input type="text" data-comment="${k}" placeholder="一言(任意)">`;
     case "minutes": return `<input type="number" min="0" inputmode="numeric" data-val="${k}" placeholder="例: 10">`;
     case "select": return `<select data-val="${k}"><option value="">選択してください</option>` + it.options.map(o => `<option>${esc(o)}</option>`).join("") + `</select>`;
-    case "textarea": return `<textarea data-val="${k}" placeholder="${esc(it.placeholder || "")}" ${k === "review" ? 'style="min-height:140px"' : ""}></textarea>`;
+    case "textarea": return `<textarea data-val="${k}" placeholder="${esc(it.placeholder || "")}" ${k === "review" || k === "kuchikomi" ? 'style="min-height:140px"' : ""}></textarea>`;
     case "url": return `<textarea data-val="${k}" placeholder="${esc(it.placeholder || "")}" style="min-height:56px"></textarea>`;
     case "date": return `<input type="date" data-val="${k}">`;
     default: return `<input type="text" data-val="${k}" placeholder="${esc(it.placeholder || "")}">`;
@@ -555,11 +527,11 @@ function openEdit(id, catId) {
       if (it.key === "urls") html += `<button type="button" class="btn sub" id="readBtn" style="margin-top:6px">URLから名前・住所を読み取る</button><div id="readMsg" style="font-size:12px;color:var(--sub);margin-top:4px"></div>`;
     });
     (g.items || []).forEach(it => {
-      html += `<div class="item"><div class="item-head"><strong>${esc(it.label)}</strong><label class="use"><input type="checkbox" data-use="${it.key}" checked> 文章に使う</label></div>${inputHtml(it)}</div>`;
+      html += `<div class="item"><div class="item-head"><strong>${esc(it.label)}</strong></div>${inputHtml(it)}</div>`;
     });
     html += `</div>`;
   });
-  html += `<div class="sec"><h2>個人メモ(AIには送りません)</h2><textarea id="ePrivate" placeholder="自由に書けます。AIには送られません。"></textarea></div>`;
+  html += `<div class="sec"><h2>個人メモ</h2><textarea id="ePrivate" placeholder="自由に書けます。"></textarea></div>`;
   $("eBody").innerHTML = html;
   const b = $("eBody");
   b.querySelectorAll("[data-val]").forEach(el => {
@@ -743,7 +715,6 @@ let lockFails = 0;
 function showLock(msg) {
   records = []; cryptoKey = null; draft = null; curId = null;
   ["eBody", "dBody", "list"].forEach(id => $(id).innerHTML = "");
-  $("dGen").value = ""; $("dPayloadText").textContent = "";
   ["menuSheet", "helpSheet", "pinSheet"].forEach(id => $(id).hidden = true);
   show("pList");
   $("lockPin").value = ""; $("lockMsg").textContent = msg || "";
@@ -759,7 +730,7 @@ async function tryUnlock() {
     if (await decStr(key, lockCfg.check) !== "ok") throw new Error("bad");
     const enc = localStorage.getItem(ENC_KEY);
     records = enc ? JSON.parse(await decStr(key, JSON.parse(enc))) : [];
-    cryptoKey = key; lockFails = 0;
+    cryptoKey = key; lockFails = 0; migrateRecords();
     $("lockScreen").hidden = true; $("lockPin").value = "";
     renderList(); show("pList"); handleShare();
   } catch (e) {
@@ -819,6 +790,18 @@ $("pinOk").onclick = async () => {
 };
 { const old = $("menuBtn").onclick; $("menuBtn").onclick = () => { renderLockArea(); old(); }; }
 
+// 前の版の「保存した文章」は、口コミ欄に移す
+function migrateRecords() {
+  let changed = false;
+  records.forEach(r => {
+    if (r.generated !== undefined) {
+      if (r.generated && !(r.vals && r.vals.kuchikomi)) { r.vals = r.vals || {}; r.vals.kuchikomi = r.generated; }
+      delete r.generated; changed = true;
+    }
+  });
+  if (changed) persist();
+}
+
 // ===== 共有から受け取る(ブラウザの「共有」でこのアプリを選んだとき) =====
 let pendingShare = null;
 try {
@@ -843,7 +826,7 @@ function handleShare() {
   }
 }
 
-if (lockCfg) showLock(); else { renderList(); handleShare(); }
+if (lockCfg) showLock(); else { migrateRecords(); renderList(); handleShare(); }
 if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) navigator.serviceWorker.register("sw.js").catch(function () {});
 </script>
 </body>
