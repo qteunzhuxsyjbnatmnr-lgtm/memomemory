@@ -12,6 +12,10 @@
 <meta name="apple-mobile-web-app-title" content="メモメモリー">
 <style>
   :root { --bg:#050505; --card:#161616; --card2:#232323; --line:#2a2a2a; --text:#f2f2f2; --sub:#9a9a9a; --green:#6cc4f0; --gold:#e0b13a; --heart:#f0628a; --red:#ff8080; --on:#06263d; }
+  :root { color-scheme: dark; }                       /* 日付のカレンダーのマークなどを、暗い画面で見えるようにする */
+  :root[data-mode="light"] { color-scheme: light; }
+  input[type=date] { min-height:44px; }
+  input[type=date]::-webkit-calendar-picker-indicator { opacity:1; cursor:pointer; padding:6px; }
   :root[data-theme="purple"] { --green:#a78bfa; --on:#1c1140; }
   :root[data-theme="green"]  { --green:#21c58c; --on:#08251a; }
   :root[data-theme="pink"]   { --green:#f472b6; --on:#400a24; }
@@ -33,6 +37,8 @@
   .chip { flex:none; padding:6px 12px; border:1px solid var(--line); background:var(--card2); color:var(--text); border-radius:16px; font-size:13px; }
   .hbtn { padding:6px 12px; border:1px solid var(--green); background:var(--card2); color:var(--green); border-radius:8px; font-size:13px; font-weight:600; font-family:inherit; margin-left:4px; }
   .rowwrap { display:flex; align-items:stretch; border-bottom:1px solid var(--line); }
+  .heart { display:block; margin:0 auto; }
+  #chips .heart { display:inline-block; vertical-align:-2px; margin:0; color:var(--heart); }
   .favb { flex:none; width:46px; border:none; background:none; color:var(--sub); font-size:22px; padding:0; font-family:inherit; }
   .favb.on { color:var(--heart); }
   .rowwrap .row { border-bottom:none; flex:1; min-width:0; }
@@ -124,7 +130,7 @@
   <header><div class="bar">
     <button class="link-btn" id="dBack">‹ 戻る</button>
     <span>
-      <button class="link-btn fav" id="dFav">♡</button>
+      <button class="link-btn fav" id="dFav" aria-label="お気に入り"></button>
       <button class="link-btn" id="dEdit">編集</button>
     </span>
   </div></header>
@@ -213,7 +219,7 @@
     <h3>文章を作る</h3>
     <p>記録を開いて「文章を作る」を押すと、日付・店名・住所・感想から文章のもとができます。自由に直して、「コピー」や「この文章を保存」ができます。</p>
     <h3>お気に入り・さがす</h3>
-    <p>記録を開いた右上の♡、または一覧の左端の♡で、お気に入りにできます。一覧では「♥お気に入り」で絞り込み、上の欄で文字検索ができます。</p>
+    <p>記録を開いた右上のハート、または一覧の左端のハートで、お気に入りにできます。一覧では「お気に入り」で絞り込み、上の欄で文字検索ができます。</p>
     <h3>個人メモ</h3>
     <p>記録の最後にある欄です。AIに送る内容には入りません。</p>
     <h3>バックアップ</h3>
@@ -390,13 +396,21 @@ function startDrag(e, handle, rows) {
   handle.addEventListener("pointerup", end);
   handle.addEventListener("pointercancel", end);
 }
+// ハートの絵(アイコンと同じ、ふっくらした形)。付けたときは塗りつぶし、外したときは線だけ
+function heartSvg(on, size) {
+  const w = size || 26;
+  // 輪郭はなめらかな曲線でふくらませ、下の先だけをとがらせたハート。
+  // 塗りつぶしは上のへこみを深く、線だけのときは浅めにして、どちらも自然に見えるようにする
+  const dip = on ? "C12.4 2.2 14.8 4.8 16 11 C17.2 4.8 19.6 2.2 23 2.2" : "C12.6 2.2 15 4.2 16 7.6 C17 4.2 19.4 2.2 23 2.2";
+  return `<svg class="heart" viewBox="0 0 32 30" width="${w}" height="${Math.round(w * 30 / 32)}" aria-hidden="true"><path d="M16 28.4 C11 24.2 1.4 17.6 1.4 10 C1.4 5 5 2.2 9 2.2 ${dip} C27 2.2 30.6 5 30.6 10 C30.6 17.6 21 24.2 16 28.4 Z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2.4" stroke-linejoin="miter" stroke-miterlimit="8"/></svg>`;
+}
 function renderList() {
   const chips = $("chips");
   chips.innerHTML = "";
   [{ id:"all", label:"すべて" }, { id:"fav", label:"♥お気に入り" }].forEach(c => {
     const b = document.createElement("button");
     b.className = "chip" + (c.id === filter ? " on" : "");
-    b.textContent = c.label;
+    if (c.id === "fav") b.innerHTML = heartSvg(true, 15) + " お気に入り"; else b.textContent = c.label;
     b.onclick = () => { filter = c.id; renderList(); };
     chips.appendChild(b);
   });
@@ -425,11 +439,11 @@ function renderList() {
         <span class="stars-s">${stars(Number(r.vals.sat))}</span></div>
       <div class="m">${esc(fmtDate(r.vals.date))}${r.vals.area ? " ・ " + esc(r.vals.area) : ""}</div>
     </button>`;
-  const starBtn = r => `<button class="favb${r.fav ? " on" : ""}" data-fav="${r.id}" aria-label="お気に入り">${r.fav ? "♥" : "♡"}</button>`;
+  const starBtn = r => `<button class="favb${r.fav ? " on" : ""}" data-fav="${r.id}" aria-label="お気に入り">${heartSvg(r.fav, 26)}</button>`;
   $("list").innerHTML = rows.length ? rows.map((r, i) => favView
     ? `<div class="rowwrap">${starBtn(r)}${rowHtml(r)}<button class="dragh" data-id="${r.id}" aria-label="ドラッグして並べ替え">≡</button></div>`
     : `<div class="rowwrap">${starBtn(r)}${rowHtml(r)}</div>`).join("")
-    : `<div class="empty">${favView ? "お気に入りはまだありません<br>記録を開いて右上の♡、または一覧の左端の♡で追加できます" : "まだ記録がありません<br>右下の + から追加できます"}</div>`;
+    : `<div class="empty">${favView ? "お気に入りはまだありません<br>記録を開いて右上のハート、または一覧の左端のハートで追加できます" : "まだ記録がありません<br>右下の + から追加できます"}</div>`;
   $("list").querySelectorAll(".row").forEach(b => b.onclick = () => openDetail(b.dataset.id));
   $("list").querySelectorAll(".favb").forEach(b => b.onclick = () => { toggleFav(b.dataset.fav); renderList(); });
   $("list").querySelectorAll(".dragh").forEach(h => h.onpointerdown = e => startDrag(e, h, rows));
@@ -442,7 +456,7 @@ function openDetail(id) {
   curId = id;
   const r = records.find(x => x.id === id); if (!r) return;
   const cat = catOf(r.cat), v = r.vals;
-  $("dFav").textContent = r.fav ? "♥" : "♡";
+  $("dFav").innerHTML = heartSvg(r.fav, 26);
   let html = `<div class="sec"><p class="big-title">${esc(titleOf(v))}</p>
     <div class="m" style="color:var(--sub);font-size:13px;margin-top:4px">${esc(fmtDate(v.date))}</div>
     ${v.sat ? `<div class="stars-s" style="font-size:20px;margin-top:6px">${stars(Number(v.sat))}</div>` : ""}</div>`;
