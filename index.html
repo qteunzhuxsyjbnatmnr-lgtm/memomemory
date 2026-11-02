@@ -37,6 +37,10 @@
   .chip { flex:none; padding:6px 12px; border:1px solid var(--line); background:var(--card2); color:var(--text); border-radius:16px; font-size:13px; }
   .hbtn { padding:6px 12px; border:1px solid var(--green); background:var(--card2); color:var(--green); border-radius:8px; font-size:13px; font-weight:600; font-family:inherit; margin-left:4px; }
   .rowwrap { display:flex; align-items:stretch; border-bottom:1px solid var(--line); }
+  .adslot { margin:18px 16px 0; padding:10px; border:1px solid var(--line); border-radius:10px; text-align:center; background:var(--card); }
+  .adslot[hidden] { display:none; }
+  .adlabel { font-size:11px; color:var(--sub); margin-bottom:6px; }
+  .adslot img { max-width:100%; height:auto; border-radius:6px; }
   .hint { font-size:12px; color:var(--sub); margin:4px 0 6px; }
   .aibtn { font-size:13px; padding:8px 12px; border:1px solid var(--green); border-radius:8px; text-decoration:none; color:var(--green); }
   .heart { display:block; margin:0 auto; }
@@ -49,7 +53,11 @@
   .rowwrap { transition:transform .12s; }
   .rowwrap.dragging { transition:none; }
   select:disabled { opacity:.4; }
-  #pinSheet { z-index:30; }
+  #pinSheet, #resvSheet { z-index:30; }
+  .resvrow { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .resvrow input { margin-top:4px; width:18px; height:18px; flex:none; }
+  .resvrow .sub { color:var(--sub); font-size:12px; }
+  .resvrow.dim { opacity:.55; }
   #lockScreen { position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px; }
   #lockScreen[hidden] { display:none; }
   .lockbox { width:100%; max-width:320px; text-align:center; }
@@ -124,6 +132,7 @@
     </div>
   </header>
   <div id="list"></div>
+  <div id="adSlot" class="adslot" hidden><div class="adlabel">広告(PR)</div><div id="adBody"></div></div>
   <button class="fab" id="addBtn" aria-label="追加">+</button>
 </div>
 
@@ -179,6 +188,18 @@
   <button class="btn sub" id="pinCancel">キャンセル</button>
 </div></div>
 
+<!-- 予約の一覧から取り込む -->
+<div class="sheet" id="resvSheet" hidden><div style="max-height:90vh;overflow-y:auto">
+  <strong style="font-size:17px">予約の一覧から取り込む</strong>
+  <p class="hint">予約の一覧ページを開いて、文字をすべて選んでコピーし、下に貼り付けてください。名前・お店・日付を探して、記録にします。貼った文章は、この端末の中で処理するだけで、外には送りません。</p>
+  <textarea id="resvText" style="min-height:120px" placeholder="ここに貼り付け"></textarea>
+  <button class="btn" id="resvParse" style="margin-top:8px">読み取る</button>
+  <div id="resvMsg" class="hint"></div>
+  <div id="resvList"></div>
+  <button class="btn" id="resvGo" hidden>チェックした分を取り込む</button>
+  <button class="btn sub" id="resvClose">閉じる</button>
+</div></div>
+
 <!-- 機能 -->
 <div class="sheet" id="menuSheet" hidden><div style="max-height:90vh;overflow-y:auto">
   <strong style="font-size:17px">機能</strong>
@@ -188,6 +209,7 @@
     <button class="btn sub" id="importBtn" style="margin:0">読み込む</button>
     <input type="file" id="importFile" accept=".json" hidden>
   </div>
+  <button class="btn sub" id="resvBtn" style="margin-top:8px">予約の一覧から取り込む</button>
   <div style="font-size:12px;color:var(--sub);margin-top:6px">書き出したファイルは暗号化されません。保管に気をつけてください。</div>
   <h3 class="mh">ロック</h3>
   <div id="lockArea"></div>
@@ -212,6 +234,8 @@
     <p>記録を開いて「AIを使わず、アプリで簡単に作る」を押すと、日付・店名・住所・感想から、文章のもとができます。自由に直して、「コピー」や「保存」ができます。</p>
     <h3>感想を口コミ文にする</h3>
     <p>記録を開いて、「感想をコピー」を押し、「ChatGPT / Gemini / Claudeを開く」から、お使いのAIに貼り付けて、整えてもらいます。できた文章は、編集画面の「口コミ」の欄に貼り付けて保存すると、あとで「口コミをコピー」で取り出せます。このアプリは、文章をAIには送りません。</p>
+    <h3>予約の一覧から取り込む</h3>
+    <p>「機能」の「予約の一覧から取り込む」を押して、予約の一覧ページの文字をコピーして貼ると、名前・お店・日付を探して、記録にします。「完了」の予約に、チェックが入ります。貼った文章は、外には送られません。</p>
     <h3>お気に入り・さがす</h3>
     <p>記録を開いた右上のハート、または一覧の左端のハートで、お気に入りにできます。一覧では「お気に入り」で絞り込み、上の欄で文字検索ができます。</p>
     <h3>個人メモ</h3>
@@ -563,6 +587,65 @@ $("eSave").onclick = () => {
   const i = records.findIndex(x => x.id === draft.id);
   if (i >= 0) records[i] = draft; else records.push(draft);
   persist(); openDetail(draft.id);
+};
+
+// ===== 広告の枠(一覧画面の一番下) =====
+// 広告サービスからもらった「画像+リンク」のコードを、下の AD_HTML に入れる。空のままなら、何も表示しない。
+// メモを守るため、プログラム(script)や埋め込み(iframe)を含むコードは、表示しない。
+const AD_HTML = "";
+(function showAd() {
+  if (!AD_HTML || /<\s*(script|iframe|object|embed)/i.test(AD_HTML)) return;
+  const box = $("adBody");
+  box.innerHTML = AD_HTML;
+  box.querySelectorAll("a").forEach(a => { a.target = "_blank"; a.rel = "sponsored noopener noreferrer"; });
+  box.querySelectorAll("img").forEach(i => { i.loading = "lazy"; i.referrerPolicy = "no-referrer"; });
+  $("adSlot").hidden = false;
+})();
+
+// ===== 予約の一覧から取り込む =====
+// 貼り付けた文章から、「状態-日付」の行(例: 完了-2026/7/12(日) 11:00-)を目印にして、
+// その上にある お店・名前 の行を探す。年齢や体型の行は使わない。
+const RESV_STATUS = /^(\S{1,8}?)\s*[-－ー]\s*(\d{4})\/(\d{1,2})\/(\d{1,2})/;
+const RESV_SKIP = /^(ネット予約|電話予約|詳細を表示.*|詳細を閉じる.*|予約)$/;
+const RESV_NAME = /^(.+?)\s*[(（]\s*\d{1,2}\s*歳\s*[)）]$/;
+const RESV_BODY = /^T?\d{2,3}\s*[・･].*\d/;
+function parseReservations(text) {
+  const lines = text.split(/\r?\n/).map(x => x.trim()).filter(x => x);
+  const out = [];
+  lines.forEach((ln, i) => {
+    const m = ln.match(RESV_STATUS);
+    if (!m) return;
+    let j = i - 1;
+    while (j >= 0 && RESV_SKIP.test(lines[j])) j--;
+    const shop = j >= 0 && !RESV_STATUS.test(lines[j]) ? lines[j] : ""; j--;
+    if (j >= 0 && RESV_BODY.test(lines[j])) j--;
+    let name = "";
+    if (j >= 0) { const nm = lines[j].match(RESV_NAME); if (nm) name = nm[1].trim(); }
+    if (!shop) return;
+    const date = `${m[2]}-${String(m[3]).padStart(2, "0")}-${String(m[4]).padStart(2, "0")}`;
+    out.push({ status: m[1], date, name, shop });
+  });
+  return out;
+}
+let resvItems = [];
+$("resvBtn").onclick = () => { $("menuSheet").hidden = true; $("resvText").value = ""; $("resvList").innerHTML = ""; $("resvMsg").textContent = ""; $("resvGo").hidden = true; $("resvSheet").hidden = false; };
+$("resvClose").onclick = () => $("resvSheet").hidden = true;
+$("resvParse").onclick = () => {
+  resvItems = parseReservations($("resvText").value);
+  if (!resvItems.length) { $("resvList").innerHTML = ""; $("resvGo").hidden = true; $("resvMsg").textContent = "予約が見つかりませんでした。一覧のページで、文字をすべて選んでコピーしたものを、貼ってください。"; return; }
+  resvItems.forEach(it => { it.dup = records.some(r => (r.vals.date || "") === it.date && (r.vals.shop || "") === it.shop && (r.vals.name || "") === it.name); it.on = it.status === "完了" && !it.dup; });
+  $("resvList").innerHTML = resvItems.map((it, k) => `<label class="resvrow${it.on ? "" : " dim"}"><input type="checkbox" data-k="${k}" ${it.on ? "checked" : ""}><span><b>${esc(it.name || "(指名なし)")}</b>　${esc(it.shop)}<br><span class="sub">${esc(fmtDate(it.date))}　${esc(it.status)}${it.dup ? "　登録済み" : ""}</span></span></label>`).join("");
+  $("resvList").querySelectorAll("input").forEach(cb => cb.onchange = () => { resvItems[cb.dataset.k].on = cb.checked; cb.closest(".resvrow").classList.toggle("dim", !cb.checked); });
+  $("resvMsg").textContent = `${resvItems.length}件見つかりました。「完了」の分に、チェックが入っています。`;
+  $("resvGo").hidden = false;
+};
+$("resvGo").onclick = () => {
+  const pick = resvItems.filter(it => it.on);
+  if (!pick.length) { $("resvMsg").textContent = "取り込む予約が、選ばれていません"; return; }
+  const now = Date.now();
+  pick.forEach((it, k) => records.push({ id: "r" + (now + k), cat: CATEGORIES[0].id, fav: false, vals: { name: it.name, shop: it.shop, date: it.date }, comments: {}, use: {}, private: "", updated: now + k }));
+  persist(); renderList();
+  $("resvMsg").textContent = `${pick.length}件を取り込みました`; $("resvList").innerHTML = ""; $("resvGo").hidden = true; $("resvText").value = "";
 };
 
 // ===== URLから名前・住所を読み取る =====
