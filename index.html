@@ -613,7 +613,7 @@ function parseReservations(text) {
     let profile = "";
     if (j >= 0 && RESV_BODY.test(lines[j])) { profile = lines[j].replace(/\s+/g, "").replace(/[･·]/g, "・"); j--; }
     let name = "";
-    if (j >= 0) { const nm = lines[j].match(RESV_NAME); if (nm && !RESV_SKIP.test(lines[j])) name = nm[1].replace(/^[A-Za-z0-9&@*]{1,2}\s+/, "").trim(); }   // 画像から読んだときの、先頭のごみ(「h  」など)を取る
+    if (j >= 0) { const nm = lines[j].match(RESV_NAME); if (nm && !RESV_SKIP.test(lines[j])) name = nm[1].replace(/^[A-Za-z0-9&@*]{1,2}\s+/, "").replace(/^\S{1,2}[\s　]{2,}/, "").trim(); }   // 画像から読んだときの、先頭のごみ(「h  」「和  」など。写真の部分を、文字と読み間違えたもの)を取る
     // ---- 状態の行より後ろ(次の予約まで): 詳細の「コース」「料金」など ----
     const end = n + 1 < statusAt.length ? statusAt[n + 1] : lines.length;
     const win = lines.slice(i + 1, end);
