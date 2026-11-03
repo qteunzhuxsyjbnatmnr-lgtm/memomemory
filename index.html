@@ -55,7 +55,9 @@
   select:disabled { opacity:.4; }
   #pinSheet, #resvSheet { z-index:30; }
   .resvrow { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px; }
-  .resvrow input { margin-top:4px; width:18px; height:18px; flex:none; }
+  .resvrow .rc { margin-top:8px; width:20px; height:20px; flex:none; }
+  .resvf { flex:1; min-width:0; display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .resvf .rf { width:100%; padding:8px; font-size:14px; min-width:0; }
   .resvrow .sub { color:var(--sub); font-size:12px; }
   .resvrow.dim { opacity:.55; }
   #lockScreen { position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -191,8 +193,10 @@
 <!-- 予約の一覧から取り込む -->
 <div class="sheet" id="resvSheet" hidden><div style="max-height:90vh;overflow-y:auto">
   <strong style="font-size:17px">予約の一覧から取り込む</strong>
-  <p class="hint">予約の一覧ページを開いて、文字をすべて選んでコピーし、下に貼り付けてください。名前・お店・日付を探して、記録にします。貼った文章は、この端末の中で処理するだけで、外には送りません。</p>
-  <textarea id="resvText" style="min-height:120px" placeholder="ここに貼り付け"></textarea>
+  <p class="hint">予約の一覧や詳細のページを開いて、文字をすべて選んでコピーし、下に貼り付けてください。スクリーンショットの画像からも読み取れます(文字の読み間違いがあることがあるので、確認してください)。名前・お店・日付・コース・料金・オプション・プロフィールを探して、記録にします。貼った文章や画像は、この端末の中で処理するだけで、外には送りません。</p>
+  <label class="btn sub" for="resvImg" style="margin:0 0 8px;text-align:center">画像(スクリーンショット)から読み取る</label>
+  <input type="file" id="resvImg" accept="image/*" multiple hidden>
+  <textarea id="resvText" style="min-height:120px" placeholder="ここに貼り付け(または、上のボタンで、画像から読み取り)"></textarea>
   <button class="btn" id="resvParse" style="margin-top:8px">読み取る</button>
   <div id="resvMsg" class="hint"></div>
   <div id="resvList"></div>
@@ -235,7 +239,7 @@
     <h3>感想を口コミ文にする</h3>
     <p>記録を開いて、「感想をコピー」を押し、「ChatGPT / Gemini / Claudeを開く」から、お使いのAIに貼り付けて、整えてもらいます。できた文章は、編集画面の「口コミ」の欄に貼り付けて保存すると、あとで「口コミをコピー」で取り出せます。このアプリは、文章をAIには送りません。</p>
     <h3>予約の一覧から取り込む</h3>
-    <p>「機能」の「予約の一覧から取り込む」を押して、予約の一覧ページの文字をコピーして貼ると、名前・お店・日付を探して、記録にします。「完了」の予約に、チェックが入ります。貼った文章は、外には送られません。</p>
+    <p>「機能」の「予約の一覧から取り込む」を押して、予約の一覧(または詳細)ページの文字をコピーして貼ると、名前・お店・日付・コース・料金・プロフィールを探して、記録にします。「完了」の予約に、チェックが入ります。スクリーンショットの画像からも読み取れます。貼った文章や画像は、外には送られません。</p>
     <h3>お気に入り・さがす</h3>
     <p>記録を開いた右上のハート、または一覧の左端のハートで、お気に入りにできます。一覧では「お気に入り」で絞り込み、上の欄で文字検索ができます。</p>
     <h3>個人メモ</h3>
@@ -254,16 +258,19 @@
 // ===== 入力項目の定義 =====
 const BASIC_COMMON = [
   { key:"name", label:"名前(店名・場所名)", type:"text", placeholder:"例: 〇〇店" },
+  { key:"profile", label:"プロフィール(身長・サイズなど)", type:"text", placeholder:"例: T160・84(C)・55・82" },
   { key:"date", label:"日付", type:"date" },
+  { key:"course", label:"コース", type:"text", placeholder:"例: 80分" },
+  { key:"cost", label:"料金", type:"text", placeholder:"例: 8,000円" },
+  { key:"option", label:"オプション", type:"text", placeholder:"例: 延長30分" },
   { key:"area", label:"住所", type:"text", placeholder:"例: 京都市〇〇区..." },
-  { key:"cost", label:"費用(任意)", type:"text", placeholder:"例: 8,000円" },
   { key:"urls", label:"URL(1行に1つ)", type:"url", placeholder:"https://..." },
 ];
 const review = ph => ({ title:"感想", items:[{ key:"review", label:"感想(自由に書く)", type:"textarea", placeholder:ph }] });
 const kuchikomiGroup = { title:"口コミ", items:[{ key:"kuchikomi", label:"口コミ(AIで整えた文章を貼る)", type:"textarea", placeholder:"AIが作った文章を、ここに貼り付けます" }] };
 const CATEGORIES = [
   { id:"memo", label:"メモ", private:true, groups:[
-    { title:"基本情報", basics:[BASIC_COMMON[0], { key:"shop", label:"店名", type:"text", placeholder:"例: 〇〇店" }, ...BASIC_COMMON.slice(1)] },
+    { title:"基本情報", basics:[BASIC_COMMON[0], BASIC_COMMON[1], { key:"shop", label:"店名", type:"text", placeholder:"例: 〇〇店" }, ...BASIC_COMMON.slice(2)] },
     review("例: 予約はスムーズ。待ち時間は10分。料金は説明どおり。清潔感があり、時間も守られた。"),
     kuchikomiGroup ]},
 ];
@@ -603,47 +610,156 @@ const AD_HTML = "";
 })();
 
 // ===== 予約の一覧から取り込む =====
-// 貼り付けた文章から、「状態-日付」の行(例: 完了-2026/7/12(日) 11:00-)を目印にして、
-// その上にある お店・名前 の行を探す。年齢や体型の行は使わない。
-const RESV_STATUS = /^(\S{1,8}?)\s*[-－ー]\s*(\d{4})\/(\d{1,2})\/(\d{1,2})/;
+// 貼り付けた文章(または、画像から読み取った文章)から、「状態-日付」の行(例: 完了-2026/7/12(日) 11:00-)を目印にして、
+// その前後にある 名前・お店・コース・料金・プロフィール の行を探す。
+const RESV_STATUS = /([ぁ-んァ-ヶ一-龥]{1,6})\s*[-－ー]\s*(\d{4})\s*[\/／]\s*(\d{1,2})\s*[\/／]\s*(\d{1,2})/;
 const RESV_SKIP = /^(ネット予約|電話予約|詳細を表示.*|詳細を閉じる.*|予約)$/;
-const RESV_NAME = /^(.+?)\s*[(（]\s*\d{1,2}\s*歳\s*[)）]$/;
-const RESV_BODY = /^T?\d{2,3}\s*[・･].*\d/;
+const RESV_NAME = /^(.+?)\s*[(（]\s*\d{1,2}\s*歳?\s*[)）]?$/;
+const RESV_BODY = /^[TＴ]?\s*\d{2,3}\s*[・･·.,]\s*\d/;
+const RESV_LABEL = /^(来店日時|店舗名|コース|オプション|料金(?!表))/;
 function parseReservations(text) {
-  const lines = text.split(/\r?\n/).map(x => x.trim()).filter(x => x);
+  // 行の前後の飾り(*や|など)を取る
+  const lines = text.split(/\r?\n/).map(x => x.replace(/^[\s*＊|｜•]+/, "").replace(/[\s|｜」』]+$/, "").trim()).filter(x => x);
+  const statusAt = [];
+  lines.forEach((ln, i) => { if (RESV_STATUS.test(ln)) statusAt.push(i); });
   const out = [];
-  lines.forEach((ln, i) => {
-    const m = ln.match(RESV_STATUS);
-    if (!m) return;
+  statusAt.forEach((i, n) => {
+    const m = lines[i].match(RESV_STATUS);
+    // ---- 状態の行より前: 名前・プロフィール・お店 ----
     let j = i - 1;
+    // 状態の行に、バッジ(ネット予約など)だけが同じ行に入っている場合は、そのまま。別の行なら、読み飛ばす
     while (j >= 0 && RESV_SKIP.test(lines[j])) j--;
-    const shop = j >= 0 && !RESV_STATUS.test(lines[j]) ? lines[j] : ""; j--;
-    if (j >= 0 && RESV_BODY.test(lines[j])) j--;
+    let shop = j >= 0 && !RESV_STATUS.test(lines[j]) ? lines[j] : ""; j--;
+    let profile = "";
+    if (j >= 0 && RESV_BODY.test(lines[j])) { profile = lines[j].replace(/\s+/g, "").replace(/[･·]/g, "・"); j--; }
     let name = "";
-    if (j >= 0) { const nm = lines[j].match(RESV_NAME); if (nm) name = nm[1].trim(); }
+    if (j >= 0) { const nm = lines[j].match(RESV_NAME); if (nm && !RESV_SKIP.test(lines[j])) name = nm[1].replace(/^[A-Za-z0-9&@*]{1,2}\s+/, "").trim(); }   // 画像から読んだときの、先頭のごみ(「h  」など)を取る
+    // ---- 状態の行より後ろ(次の予約まで): 詳細の「コース」「料金」など ----
+    const end = n + 1 < statusAt.length ? statusAt[n + 1] : lines.length;
+    const win = lines.slice(i + 1, end);
+    const labeled = re => {
+      for (let k = 0; k < win.length; k++) {
+        const mm = win[k].match(re);
+        if (!mm) continue;
+        let v = (mm[1] || "").trim();
+        if (!v) for (let q = k + 1; q < win.length; q++) { if (RESV_LABEL.test(win[q])) break; if (win[q]) { v = win[q]; break; } }
+        return v;
+      }
+      return "";
+    };
+    const shopL = labeled(/^店舗名\s*[:：]?\s*(.*)$/);
+    if (shopL) shop = shopL;
+    const course = labeled(/^コース\s*[:：]?\s*(.*)$/);
+    let option = labeled(/^オプション\s*[:：]?\s*(.*)$/);
+    if (RESV_LABEL.test(option)) option = "";
+    const priceRaw = labeled(/^料金(?!表)\s*[:：]?\s*(.*)$/);
+    const pm = priceRaw.match(/[\d,，]+\s*円/);
+    const price = pm ? pm[0].replace(/\s+/g, "").replace(/，/g, ",") : "";
     if (!shop) return;
     const date = `${m[2]}-${String(m[3]).padStart(2, "0")}-${String(m[4]).padStart(2, "0")}`;
-    out.push({ status: m[1], date, name, shop });
+    out.push({ status: m[1], date, name, shop, course, price, option, profile });
   });
   return out;
 }
+
+// ---- 画像(スクリーンショット)から文字を読み取る ----
+// 読み取りのプログラム(Tesseract.js)と日本語のデータは、使うときだけ、配信サービス(jsDelivr)から読み込む。
+// 画像は、端末の中で処理するだけで、外には送らない。
+const OCR_JS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+const OCR_LANG = "https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0_fast";
+let ocrLoading = null;
+function loadOcr() {
+  if (window.Tesseract) return Promise.resolve();
+  if (!ocrLoading) ocrLoading = new Promise((res, rej) => {
+    const sc = document.createElement("script");
+    sc.src = OCR_JS; sc.onload = res; sc.onerror = () => { ocrLoading = null; rej(new Error("load")); };
+    document.head.appendChild(sc);
+  });
+  return ocrLoading;
+}
+// 暗い画面(明るい文字)は、白黒を反転して、読みやすくする
+async function imageToCanvas(file) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.max(1, 1600 / bmp.width);
+  const c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+  const x = c.getContext("2d");
+  x.drawImage(bmp, 0, 0, c.width, c.height);
+  const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+  let sum = 0;
+  for (let i = 0; i < p.length; i += 4) { const g = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]; p[i] = p[i + 1] = p[i + 2] = g; sum += g; }
+  const invert = sum / (p.length / 4) < 128;
+  for (let i = 0; i < p.length; i += 4) { let g = invert ? 255 - p[i] : p[i]; g = Math.max(0, Math.min(255, (g - 128) * 1.5 + 128)); p[i] = p[i + 1] = p[i + 2] = g; }
+  x.putImageData(d, 0, 0);
+  return c;
+}
+async function ocrFiles(files, onStatus) {
+  onStatus("読み取り用のデータを読み込んでいます…(初めてのときは、約6MBで、少し時間がかかります)");
+  await loadOcr();
+  const worker = await Tesseract.createWorker("jpn", 1, { langPath: OCR_LANG, gzip: true });
+  await worker.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "1" });
+  let all = "";
+  try {
+    for (let k = 0; k < files.length; k++) {
+      onStatus(`画像から文字を読み取っています…(${k + 1}/${files.length})`);
+      const { data } = await worker.recognize(await imageToCanvas(files[k]));
+      all += data.text + "\n";
+    }
+  } finally { await worker.terminate(); }
+  return all;
+}
+
 let resvItems = [];
 $("resvBtn").onclick = () => { $("menuSheet").hidden = true; $("resvText").value = ""; $("resvList").innerHTML = ""; $("resvMsg").textContent = ""; $("resvGo").hidden = true; $("resvSheet").hidden = false; };
 $("resvClose").onclick = () => $("resvSheet").hidden = true;
+$("resvImg").onchange = async e => {
+  const files = [...e.target.files]; e.target.value = "";
+  if (!files.length) return;
+  try {
+    const text = await ocrFiles(files, m => $("resvMsg").textContent = m);
+    $("resvText").value = ($("resvText").value ? $("resvText").value + "\n" : "") + text;
+    $("resvMsg").textContent = "読み取りました。文字の読み間違いがあることがあるので、下の欄を見て、必要なら直してから、「読み取る」を押してください。";
+  } catch (err) {
+    $("resvMsg").textContent = "画像から読み取れませんでした。ネットにつながっているか、確認してください。";
+  }
+};
 $("resvParse").onclick = () => {
   resvItems = parseReservations($("resvText").value);
   if (!resvItems.length) { $("resvList").innerHTML = ""; $("resvGo").hidden = true; $("resvMsg").textContent = "予約が見つかりませんでした。一覧のページで、文字をすべて選んでコピーしたものを、貼ってください。"; return; }
-  resvItems.forEach(it => { it.dup = records.some(r => (r.vals.date || "") === it.date && (r.vals.shop || "") === it.shop && (r.vals.name || "") === it.name); it.on = it.status === "完了" && !it.dup; });
-  $("resvList").innerHTML = resvItems.map((it, k) => `<label class="resvrow${it.on ? "" : " dim"}"><input type="checkbox" data-k="${k}" ${it.on ? "checked" : ""}><span><b>${esc(it.name || "(指名なし)")}</b>　${esc(it.shop)}<br><span class="sub">${esc(fmtDate(it.date))}　${esc(it.status)}${it.dup ? "　登録済み" : ""}</span></span></label>`).join("");
-  $("resvList").querySelectorAll("input").forEach(cb => cb.onchange = () => { resvItems[cb.dataset.k].on = cb.checked; cb.closest(".resvrow").classList.toggle("dim", !cb.checked); });
-  $("resvMsg").textContent = `${resvItems.length}件見つかりました。「完了」の分に、チェックが入っています。`;
+  const same = it => records.some(r => (r.vals.date || "") === it.date && (r.vals.shop || "") === it.shop && (r.vals.name || "") === it.name);
+  resvItems.forEach(it => { it.dup = same(it); it.on = it.status === "完了" && !it.dup; });
+  $("resvList").innerHTML = resvItems.map((it, k) => `<div class="resvrow${it.on ? "" : " dim"}" data-k="${k}">
+    <input type="checkbox" class="rc" ${it.on ? "checked" : ""}>
+    <div class="resvf">
+      <input class="rf" data-f="name" value="${esc(it.name)}" placeholder="名前(指名なしは空)">
+      <input class="rf" data-f="shop" value="${esc(it.shop)}" placeholder="店名">
+      <input class="rf" type="date" data-f="date" value="${esc(it.date)}">
+      <input class="rf" data-f="price" value="${esc(it.price)}" placeholder="料金">
+      <input class="rf" data-f="course" value="${esc(it.course)}" placeholder="コース">
+      <input class="rf" data-f="option" value="${esc(it.option || "")}" placeholder="オプション">
+      <input class="rf" data-f="profile" value="${esc(it.profile)}" placeholder="プロフィール">
+      <div class="sub" style="grid-column:1/3">${esc(it.status)}${it.dup ? "　登録済み" : ""}</div>
+    </div></div>`).join("");
+  $("resvList").querySelectorAll(".resvrow").forEach(row => {
+    const it = resvItems[row.dataset.k];
+    row.querySelector(".rc").onchange = e => { it.on = e.target.checked; row.classList.toggle("dim", !it.on); };
+    row.querySelectorAll(".rf").forEach(inp => inp.oninput = () => { it[inp.dataset.f] = inp.value; });
+  });
+  $("resvMsg").textContent = `${resvItems.length}件見つかりました。「完了」の分に、チェックが入っています。内容は、ここで直せます。`;
   $("resvGo").hidden = false;
 };
 $("resvGo").onclick = () => {
-  const pick = resvItems.filter(it => it.on);
+  const pick = resvItems.filter(it => it.on && it.shop);
   if (!pick.length) { $("resvMsg").textContent = "取り込む予約が、選ばれていません"; return; }
   const now = Date.now();
-  pick.forEach((it, k) => records.push({ id: "r" + (now + k), cat: CATEGORIES[0].id, fav: false, vals: { name: it.name, shop: it.shop, date: it.date }, comments: {}, use: {}, private: "", updated: now + k }));
+  pick.forEach((it, k) => {
+    const vals = { name: it.name, shop: it.shop, date: it.date };
+    if (it.price) vals.cost = it.price;
+    if (it.course) vals.course = it.course;
+    if (it.option) vals.option = it.option;
+    if (it.profile) vals.profile = it.profile;
+    records.push({ id: "r" + (now + k), cat: CATEGORIES[0].id, fav: false, vals, comments: {}, use: {}, private: "", updated: now + k });
+  });
   persist(); renderList();
   $("resvMsg").textContent = `${pick.length}件を取り込みました`; $("resvList").innerHTML = ""; $("resvGo").hidden = true; $("resvText").value = "";
 };
