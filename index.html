@@ -53,13 +53,7 @@
   .rowwrap { transition:transform .12s; }
   .rowwrap.dragging { transition:none; }
   select:disabled { opacity:.4; }
-  #pinSheet, #resvSheet { z-index:30; }
-  .resvrow { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px; }
-  .resvrow .rc { margin-top:8px; width:20px; height:20px; flex:none; }
-  .resvf { flex:1; min-width:0; display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-  .resvf .rf { width:100%; padding:8px; font-size:14px; min-width:0; }
-  .resvrow .sub { color:var(--sub); font-size:12px; }
-  .resvrow.dim { opacity:.55; }
+  #pinSheet { z-index:30; }
   #lockScreen { position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px; }
   #lockScreen[hidden] { display:none; }
   .lockbox { width:100%; max-width:320px; text-align:center; }
@@ -190,20 +184,6 @@
   <button class="btn sub" id="pinCancel">キャンセル</button>
 </div></div>
 
-<!-- 予約の一覧から取り込む -->
-<div class="sheet" id="resvSheet" hidden><div style="max-height:90vh;overflow-y:auto">
-  <strong style="font-size:17px">予約の一覧から取り込む</strong>
-  <p class="hint">予約の一覧や詳細のページを開いて、文字をすべて選んでコピーし、下に貼り付けてください。スクリーンショットの画像からも読み取れます(文字の読み間違いがあることがあるので、確認してください)。名前・お店・日付・コース・料金・オプション・プロフィールを探して、記録にします。貼った文章や画像は、この端末の中で処理するだけで、外には送りません。</p>
-  <label class="btn sub" for="resvImg" style="margin:0 0 8px;text-align:center">画像(スクリーンショット)から読み取る</label>
-  <input type="file" id="resvImg" accept="image/*" multiple hidden>
-  <textarea id="resvText" style="min-height:120px" placeholder="ここに貼り付け(または、上のボタンで、画像から読み取り)"></textarea>
-  <button class="btn" id="resvParse" style="margin-top:8px">読み取る</button>
-  <div id="resvMsg" class="hint"></div>
-  <div id="resvList"></div>
-  <button class="btn" id="resvGo" hidden>チェックした分を取り込む</button>
-  <button class="btn sub" id="resvClose">閉じる</button>
-</div></div>
-
 <!-- 機能 -->
 <div class="sheet" id="menuSheet" hidden><div style="max-height:90vh;overflow-y:auto">
   <strong style="font-size:17px">機能</strong>
@@ -213,7 +193,6 @@
     <button class="btn sub" id="importBtn" style="margin:0">読み込む</button>
     <input type="file" id="importFile" accept=".json" hidden>
   </div>
-  <button class="btn sub" id="resvBtn" style="margin-top:8px">予約の一覧から取り込む</button>
   <div style="font-size:12px;color:var(--sub);margin-top:6px">書き出したファイルは暗号化されません。保管に気をつけてください。</div>
   <h3 class="mh">ロック</h3>
   <div id="lockArea"></div>
@@ -238,8 +217,8 @@
     <p>記録を開いて「AIを使わず、アプリで簡単に作る」を押すと、日付・店名・住所・感想から、文章のもとができます。自由に直して、「コピー」や「保存」ができます。</p>
     <h3>感想を口コミ文にする</h3>
     <p>記録を開いて、「感想をコピー」を押し、「ChatGPT / Gemini / Claudeを開く」から、お使いのAIに貼り付けて、整えてもらいます。できた文章は、編集画面の「口コミ」の欄に貼り付けて保存すると、あとで「口コミをコピー」で取り出せます。このアプリは、文章をAIには送りません。</p>
-    <h3>予約の一覧から取り込む</h3>
-    <p>「機能」の「予約の一覧から取り込む」を押して、予約の一覧(または詳細)ページの文字をコピーして貼ると、名前・お店・日付・コース・料金・プロフィールを探して、記録にします。「完了」の予約に、チェックが入ります。スクリーンショットの画像からも読み取れます。貼った文章や画像は、外には送られません。</p>
+    <h3>予約から自動入力</h3>
+    <p>右下の「+」(または、記録の「編集」)を押すと、いちばん上に「予約から自動入力」があります。予約の画面のスクリーンショットを選ぶと、名前・店名・日付・コース・料金・オプション・プロフィールを、自動で入力します。複数の予約が見つかったときは、入力する予約を選べます。文字の読み間違いがあることがあるので、確認してください。画像や文章は、外には送られません。</p>
     <h3>お気に入り・さがす</h3>
     <p>記録を開いた右上のハート、または一覧の左端のハートで、お気に入りにできます。一覧では「お気に入り」で絞り込み、上の欄で文字検索ができます。</p>
     <h3>個人メモ</h3>
@@ -563,7 +542,7 @@ function openEdit(id, catId) {
     html += `</div>`;
   });
   html += `<div class="sec"><h2>個人メモ</h2><textarea id="ePrivate" placeholder="自由に書けます。"></textarea></div>`;
-  $("eBody").innerHTML = html;
+  $("eBody").innerHTML = autoFillBlock() + html;
   const b = $("eBody");
   b.querySelectorAll("[data-val]").forEach(el => {
     el.value = draft.vals[el.dataset.val] ?? "";
@@ -586,6 +565,7 @@ function openEdit(id, catId) {
   });
   $("readBtn").onclick = readFromUrl;
   $("ePrivate").value = draft.private || ""; $("ePrivate").oninput = e => draft.private = e.target.value;
+  bindAuto();
   show("pEdit");
 }
 $("eCancel").onclick = () => { if (records.some(x => x.id === draft.id)) openDetail(draft.id); else { renderList(); show("pList"); } };
@@ -648,7 +628,12 @@ function parseReservations(text) {
       return "";
     };
     const shopL = labeled(/^店舗名\s*[:：]?\s*(.*)$/);
-    if (shopL) shop = shopL;
+    // お店の名前は、上の行と「店舗名」の行の両方にあることがある。画像から読んだときは、どちらかが読み間違えていることがあるので、
+    // 途中に大きな空白がなく、長いほうを選ぶ(同じなら、上の行)
+    if (shopL) {
+      const score = t => t.length - 5 * (t.match(/\s{2,}/g) || []).length;
+      if (!shop || score(shopL) > score(shop)) shop = shopL;
+    }
     const course = labeled(/^コース\s*[:：]?\s*(.*)$/);
     let option = labeled(/^オプション\s*[:：]?\s*(.*)$/);
     if (RESV_LABEL.test(option)) option = "";
@@ -709,60 +694,88 @@ async function ocrFiles(files, onStatus) {
   return all;
 }
 
-let resvItems = [];
-$("resvBtn").onclick = () => { $("menuSheet").hidden = true; $("resvText").value = ""; $("resvList").innerHTML = ""; $("resvMsg").textContent = ""; $("resvGo").hidden = true; $("resvSheet").hidden = false; };
-$("resvClose").onclick = () => $("resvSheet").hidden = true;
-$("resvImg").onchange = async e => {
-  const files = [...e.target.files]; e.target.value = "";
-  if (!files.length) return;
-  try {
-    const text = await ocrFiles(files, m => $("resvMsg").textContent = m);
-    $("resvText").value = ($("resvText").value ? $("resvText").value + "\n" : "") + text;
-    $("resvMsg").textContent = "読み取りました。文字の読み間違いがあることがあるので、下の欄を見て、必要なら直してから、「読み取る」を押してください。";
-  } catch (err) {
-    $("resvMsg").textContent = "画像から読み取れませんでした。ネットにつながっているか、確認してください。";
+// ===== 予約から自動入力(新規・編集の画面の、いちばん上) =====
+// 画像(スクリーンショット)を選ぶと、文字を読み取って、予約を探し、入力欄に自動で入れる。
+function autoFillBlock() {
+  return `<div class="sec" id="autoSec"><h2>予約から自動入力</h2>
+    <div class="hint">予約の画面のスクリーンショットを選ぶと、名前・店名・日付・コース・料金・オプション・プロフィールを、自動で入力します。文字の読み間違いがあることがあるので、確認してください。画像は、外に送られません。</div>
+    <label class="btn" for="autoImg" style="margin:0;text-align:center">画像(スクリーンショット)を選ぶ</label>
+    <input type="file" id="autoImg" accept="image/*" multiple hidden>
+    <button type="button" class="link-btn" id="autoPasteBtn" style="margin-top:6px">文字を貼り付けて入力する</button>
+    <div id="autoPaste" hidden>
+      <textarea id="autoText" style="min-height:90px" placeholder="コピーした予約の文章を、ここに貼り付け"></textarea>
+      <button type="button" class="btn sub" id="autoGo" style="margin-top:6px">この文章から入力する</button>
+    </div>
+    <div id="autoMsg" class="hint"></div>
+    <div id="autoList"></div>
+  </div>`;
+}
+// 見つけた予約の内容を、入力欄に入れる(読み取れた項目だけ。その項目に前から入っていた内容は、置き換える)
+function applyReservation(it) {
+  const map = { name: it.name, shop: it.shop, date: it.date, cost: it.price, course: it.course, option: it.option, profile: it.profile };
+  let n = 0;
+  Object.entries(map).forEach(([k, v]) => {
+    if (!v) return;
+    const el = document.querySelector(`#eBody [data-val=${k}]`);
+    if (!el) return;
+    el.value = v; draft.vals[k] = v; n++;
+  });
+  return n;
+}
+function autoFromText(text) {
+  const msg = $("autoMsg"), list = $("autoList");
+  list.innerHTML = "";
+  const items = parseReservations(text);
+  if (!items.length) {
+    $("autoPaste").hidden = false;
+    msg.textContent = "予約が見つかりませんでした。読み取った文字は、下の欄に入れてあります。直して、「この文章から入力する」を押してください。";
+    return;
   }
-};
-$("resvParse").onclick = () => {
-  resvItems = parseReservations($("resvText").value);
-  if (!resvItems.length) { $("resvList").innerHTML = ""; $("resvGo").hidden = true; $("resvMsg").textContent = "予約が見つかりませんでした。一覧のページで、文字をすべて選んでコピーしたものを、貼ってください。"; return; }
+  if (items.length === 1) {
+    applyReservation(items[0]);
+    msg.textContent = "入力しました。読み間違いがないか、下の欄を確認してください。";
+    return;
+  }
+  msg.textContent = `${items.length}件の予約が見つかりました。入力する予約を選んでください。`;
   const same = it => records.some(r => (r.vals.date || "") === it.date && (r.vals.shop || "") === it.shop && (r.vals.name || "") === it.name);
-  resvItems.forEach(it => { it.dup = same(it); it.on = it.status === "完了" && !it.dup; });
-  $("resvList").innerHTML = resvItems.map((it, k) => `<div class="resvrow${it.on ? "" : " dim"}" data-k="${k}">
-    <input type="checkbox" class="rc" ${it.on ? "checked" : ""}>
-    <div class="resvf">
-      <input class="rf" data-f="name" value="${esc(it.name)}" placeholder="名前(指名なしは空)">
-      <input class="rf" data-f="shop" value="${esc(it.shop)}" placeholder="店名">
-      <input class="rf" type="date" data-f="date" value="${esc(it.date)}">
-      <input class="rf" data-f="price" value="${esc(it.price)}" placeholder="料金">
-      <input class="rf" data-f="course" value="${esc(it.course)}" placeholder="コース">
-      <input class="rf" data-f="option" value="${esc(it.option || "")}" placeholder="オプション">
-      <input class="rf" data-f="profile" value="${esc(it.profile)}" placeholder="プロフィール">
-      <div class="sub" style="grid-column:1/3">${esc(it.status)}${it.dup ? "　登録済み" : ""}</div>
-    </div></div>`).join("");
-  $("resvList").querySelectorAll(".resvrow").forEach(row => {
-    const it = resvItems[row.dataset.k];
-    row.querySelector(".rc").onchange = e => { it.on = e.target.checked; row.classList.toggle("dim", !it.on); };
-    row.querySelectorAll(".rf").forEach(inp => inp.oninput = () => { it[inp.dataset.f] = inp.value; });
+  list.innerHTML = items.map((it, k) => `<button type="button" class="btn sub pickb" data-k="${k}" style="text-align:left">${esc(fmtDate(it.date))}　${esc(it.name || "(指名なし)")}　${esc(it.shop)}　<span style="color:var(--sub)">${esc(it.status)}</span></button>`).join("")
+    + `<button type="button" class="btn" id="autoAll">「完了」の予約を、すべて別々の記録にする</button>`;
+  list.querySelectorAll(".pickb").forEach(b => b.onclick = () => {
+    applyReservation(items[b.dataset.k]);
+    list.innerHTML = ""; msg.textContent = "入力しました。読み間違いがないか、下の欄を確認してください。";
   });
-  $("resvMsg").textContent = `${resvItems.length}件見つかりました。「完了」の分に、チェックが入っています。内容は、ここで直せます。`;
-  $("resvGo").hidden = false;
-};
-$("resvGo").onclick = () => {
-  const pick = resvItems.filter(it => it.on && it.shop);
-  if (!pick.length) { $("resvMsg").textContent = "取り込む予約が、選ばれていません"; return; }
-  const now = Date.now();
-  pick.forEach((it, k) => {
-    const vals = { name: it.name, shop: it.shop, date: it.date };
-    if (it.price) vals.cost = it.price;
-    if (it.course) vals.course = it.course;
-    if (it.option) vals.option = it.option;
-    if (it.profile) vals.profile = it.profile;
-    records.push({ id: "r" + (now + k), cat: CATEGORIES[0].id, fav: false, vals, comments: {}, use: {}, private: "", updated: now + k });
-  });
-  persist(); renderList();
-  $("resvMsg").textContent = `${pick.length}件を取り込みました`; $("resvList").innerHTML = ""; $("resvGo").hidden = true; $("resvText").value = "";
-};
+  $("autoAll").onclick = () => {
+    const pick = items.filter(it => it.status === "完了" && it.shop && !same(it));
+    if (!pick.length) { msg.textContent = "新しく記録にできる「完了」の予約は、ありませんでした。"; return; }
+    const now = Date.now();
+    pick.forEach((it, k) => {
+      const vals = { name: it.name, shop: it.shop, date: it.date };
+      if (it.price) vals.cost = it.price;
+      if (it.course) vals.course = it.course;
+      if (it.option) vals.option = it.option;
+      if (it.profile) vals.profile = it.profile;
+      records.push({ id: "r" + (now + k), cat: CATEGORIES[0].id, fav: false, vals, comments: {}, use: {}, private: "", updated: now + k });
+    });
+    persist(); renderList();
+    list.innerHTML = ""; msg.textContent = `${pick.length}件を、別々の記録にしました。この画面は、キャンセルで閉じてください。`;
+  };
+}
+function bindAuto() {
+  $("autoImg").onchange = async e => {
+    const files = [...e.target.files]; e.target.value = "";
+    if (!files.length) return;
+    $("autoList").innerHTML = "";
+    try {
+      const text = await ocrFiles(files, m => $("autoMsg").textContent = m);
+      $("autoText").value = text;
+      autoFromText(text);
+    } catch (err) {
+      $("autoMsg").textContent = "画像から読み取れませんでした。ネットにつながっているか、確認してください。";
+    }
+  };
+  $("autoPasteBtn").onclick = () => { $("autoPaste").hidden = !$("autoPaste").hidden; };
+  $("autoGo").onclick = () => autoFromText($("autoText").value);
+}
 
 // ===== URLから名前・住所を読み取る =====
 // 読み取り用サーバー(Cloudflare Worker)のURLをここに入れる。空のままだと読み取りは使えない。
